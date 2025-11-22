@@ -29,6 +29,7 @@ This application follows a modern, containerized microservices architecture desi
 5.  **Vertex AI**: Provides the AI models for embeddings (text & multimodal) and the fully managed search engine.
 
 ```text
+```text
 +------------------+          +---------------------+
 |   User Browser   | --HTTPS->|   Frontend (React)  |
 +------------------+          +---------------------+
@@ -50,10 +51,9 @@ This application follows a modern, containerized microservices architecture desi
                       | Google Cloud                            |
                       |                                         |
                       | +-----------+       +-----------------+ |
-                      | | Vertex AI |       | AlloyDB Primary | |
+                      | | Vertex AI | <---> | AlloyDB Primary | |
                       | +-----------+       +-----------------+ |
                       +-----------------------------------------+
-
 ### User Interface
 The interface is designed to be intuitive, offering four distinct search modes to cater to different user needs.
 
