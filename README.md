@@ -28,17 +28,17 @@ This application follows a modern, containerized microservices architecture desi
 graph TD
     User[User Browser] -->|HTTPS| FE[Frontend (React)]
     FE -->|REST API| BE[Backend (FastAPI)]
-    
+
     subgraph "Cloud Run Service"
         BE
         Proxy[AlloyDB Auth Proxy]
     end
-    
+
     BE -->|Localhost:5432| Proxy
     Proxy -->|Secure Tunnel| DB[(AlloyDB Primary)]
-    
+
     BE -->|API| Vertex[Vertex AI]
-    
+
     subgraph "Google Cloud"
         DB
         Vertex
