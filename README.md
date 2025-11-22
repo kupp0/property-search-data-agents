@@ -28,6 +28,7 @@ This application follows a modern, containerized microservices architecture desi
 4.  **AlloyDB for PostgreSQL**: The primary relational database, enhanced with `pgvector` for semantic search and `alloydb_ai_nl` for natural language to SQL translation.
 5.  **Vertex AI**: Provides the AI models for embeddings (text & multimodal) and the fully managed search engine.
 
+```text
 +------------------+          +---------------------+
 |   User Browser   | --HTTPS->|   Frontend (React)  |
 +------------------+          +---------------------+
