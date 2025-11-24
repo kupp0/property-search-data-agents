@@ -2,11 +2,19 @@
 set -e
 
 # Load environment variables
-export PROJECT_ID=$(gcloud config get-value project)
-export REGION="europe-west1" # Hardcoded for now, or fetch from config
-# AlloyDB Auth Proxy expects the full URI, not just the connection name
-export INSTANCE_URI="projects/$PROJECT_ID/locations/$REGION/clusters/hr-dev/instances/hr-primary"
-export INSTANCE_CONNECTION_NAME="$PROJECT_ID:$REGION:hr-dev:hr-primary" # Keep this for backend if needed, but proxy needs URI
+# Load environment variables
+if [ -f "backend/.env" ]; then
+    echo "📄 Loading configuration from backend/.env..."
+    export $(grep -v '^#' backend/.env | xargs)
+else
+    echo "❌ backend/.env not found. Please run ./setup_env.sh first."
+    exit 1
+fi
+
+PROJECT_ID=${GCP_PROJECT_ID:-$(gcloud config get-value project)}
+REGION=${GCP_LOCATION:-"europe-west1"}
+# In setup_env.sh, INSTANCE_CONNECTION_NAME is the full URI
+INSTANCE_URI="${INSTANCE_CONNECTION_NAME}"
 
 echo "🔧 Setting up local debug environment..."
 
@@ -42,13 +50,13 @@ sudo docker run -d --rm \
     --name search-backend \
     --network host \
     -e PORT=8080 \
-    -e DB_NAME=postgres \
-    -e DB_USER=postgres \
-    -e DB_PASSWORD=Welcome01 \
+    -e DB_NAME=$DB_NAME \
+    -e DB_USER=$DB_USER \
+    -e DB_PASSWORD=$DB_PASSWORD \
     -e GCP_PROJECT_ID=$PROJECT_ID \
     -e GCP_LOCATION=$REGION \
     -e INSTANCE_CONNECTION_NAME=$INSTANCE_CONNECTION_NAME \
-    -e VERTEX_SEARCH_DATA_STORE_ID="alloydb-property_1763410579360" \
+    -e VERTEX_SEARCH_DATA_STORE_ID="$VERTEX_SEARCH_DATA_STORE_ID" \
     -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys.json \
     -v $HOME/.config/gcloud/application_default_credentials.json:/tmp/keys.json:ro \
     local-search-backend

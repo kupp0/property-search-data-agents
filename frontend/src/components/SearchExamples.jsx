@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Info, X, ChevronRight, Lightbulb } from 'lucide-react';
 
 const EXAMPLES = [
     {
         id: 'hybrid',
         label: 'Hybrid Search',
-        query: "Show me cheap family apartments in Zurich with a nice view",
+        query: "Show me family apartments in Zurich with a nice view up to 6k",
         title: 'The "All-in-One" Hybrid Search',
         what: 'The "Master Template" working perfectly.',
         why: [
-            { label: 'Cheap', desc: 'Triggers Fragment (price <= 2500).' },
             { label: 'Family', desc: 'Triggers Fragment (bedrooms >= 3).' },
             { label: 'Zurich', desc: "Recognized as City Concept (city = 'Zurich')." },
+            { label: 'up to 6k', desc: 'Triggers (price >= 6000).' },
             { label: 'Nice view', desc: 'Remaining text sent to Vector Search (ORDER BY embedding...).' }
         ]
     },
@@ -143,15 +144,15 @@ const SearchExamples = ({ currentQuery, onSelectQuery }) => {
                     <Info className="w-6 h-6" />
                 </button>
 
-                {showInfo && (
-                    <>
+                {showInfo && createPortal(
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8">
                         <div
-                            className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm transition-opacity duration-500"
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-500"
                             onClick={() => setShowInfo(false)}
                         />
-                        <div className="absolute right-0 top-full mt-4 w-[1200px] max-w-[95vw] max-h-[80vh] overflow-y-auto custom-scrollbar bg-white/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/50 z-50 animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-300 origin-top-right ring-1 ring-black/5">
+                        <div className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto custom-scrollbar bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/50 animate-in fade-in zoom-in-95 duration-300 ring-1 ring-black/5 flex flex-col">
                             {/* Header with Gradient */}
-                            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-8 text-white relative overflow-hidden sticky top-0 z-10 shrink-0">
+                            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-6 sm:p-8 text-white relative overflow-hidden shrink-0">
                                 <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
                                 <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-black/10 rounded-full blur-3xl"></div>
 
@@ -172,7 +173,7 @@ const SearchExamples = ({ currentQuery, onSelectQuery }) => {
                             </div>
 
                             {matchedExample ? (
-                                <div className="p-8 space-y-8">
+                                <div className="p-6 sm:p-8 space-y-8 overflow-y-auto">
                                     <div>
                                         <h4 className="text-3xl font-bold text-slate-800 mb-4 tracking-tight">{matchedExample.title}</h4>
                                         <div className="text-base font-mono bg-slate-900/5 p-6 rounded-2xl border border-slate-200/50 text-slate-600 shadow-inner">
@@ -217,7 +218,8 @@ const SearchExamples = ({ currentQuery, onSelectQuery }) => {
                                 </div>
                             )}
                         </div>
-                    </>
+                    </div>,
+                    document.body
                 )}
             </div>
         </div>

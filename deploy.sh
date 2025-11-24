@@ -4,16 +4,26 @@
 set -e
 
 # Configuration
-PROJECT_ID=$(gcloud config get-value project)
-REGION="europe-west1"
+if [ -f "backend/.env" ]; then
+    echo "📄 Loading configuration from backend/.env..."
+    export $(grep -v '^#' backend/.env | xargs)
+else
+    echo "❌ backend/.env not found. Please run ./setup_env.sh first."
+    exit 1
+fi
+
+PROJECT_ID=${GCP_PROJECT_ID:-$(gcloud config get-value project)}
+REGION=${GCP_LOCATION:-"europe-west1"}
 BACKEND_SERVICE_NAME="search-backend"
 FRONTEND_SERVICE_NAME="search-frontend"
-INSTANCE_CONNECTION_NAME="projects/kupczak-1132-20251020115736/locations/europe-west1/clusters/hr-dev/instances/hr-primary"
-VERTEX_SEARCH_DATA_STORE_ID="alloydb-property_1763410579360"
-DB_USER="postgres"
-DB_NAME="postgres"
-# You might want to prompt for password or use Secret Manager in production
-# For this demo script, we'll assume it's set in env or prompt
+
+# Ensure required variables are set
+if [ -z "$INSTANCE_CONNECTION_NAME" ] || [ -z "$VERTEX_SEARCH_DATA_STORE_ID" ]; then
+    echo "❌ Missing required configuration in backend/.env"
+    exit 1
+fi
+
+# Password check
 if [ -z "$DB_PASSWORD" ]; then
     read -s -p "Enter DB Password: " DB_PASSWORD
     echo ""
