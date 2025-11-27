@@ -90,7 +90,6 @@ SELECT alloydb_ai_nl.refresh_value_index(nl_config_id_in => 'property_search_con
 -- Check Auto generation based on query history: 
 -- SELECT alloydb_ai_nl.generate_templates('property_search_config');
 
-
 -- ### 1 ### With semantic intent in the search query
 SELECT alloydb_ai_nl.add_template(
     nl_config_id => 'property_search_config',
