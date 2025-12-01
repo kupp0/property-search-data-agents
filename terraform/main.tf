@@ -31,7 +31,8 @@ resource "google_project_service" "services" {
     "discoveryengine.googleapis.com",
     "servicenetworking.googleapis.com",
     "cloudresourcemanager.googleapis.com",
-    "iam.googleapis.com"
+    "iam.googleapis.com",
+    "orgpolicy.googleapis.com"
   ])
 
   project = google_project.project.project_id
