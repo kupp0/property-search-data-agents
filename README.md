@@ -28,33 +28,7 @@ This application follows a modern, containerized microservices architecture desi
 4.  **AlloyDB for PostgreSQL**: The primary relational database, enhanced with `pgvector` for semantic search and `alloydb_ai_nl` for natural language to SQL translation.
 5.  **Vertex AI**: Provides the AI models for embeddings (text & multimodal) and the fully managed search engine.
 
-```text
-+------------------+          +---------------------+
-|   User Browser   | --HTTPS->|   Frontend (React)  |
-+------------------+          +---------------------+
-                                         |
-                                     REST API
-                                         v
-                      +-----------------------------------------+
-                      | Cloud Run Service                       |
-                      |                                         |
-                      | +-------------------+    +------------+ |
-                      | | Backend (FastAPI) | -> | Auth Proxy | |
-                      | +-------------------+    +------------+ |
-                      +----------|----------------------|-------+
-                                 |                      |
-                                API               Secure Tunnel
-                                 |                      |
-                                 v                      v
-                      +-----------------------------------------+
-                      | Google Cloud                            |
-                      |                                         |
-                      | +-----------+       +-----------------+ |
-                      | | Vertex AI | <---> | AlloyDB Primary | |
-                      | +-----------+       +-----------------+ |
-                      +-----------------------------------------+
-
-```
+![Architecture Diagram](assets/architecture_diagram.png)
 
 ### User Interface
 The interface is designed to be intuitive, offering four distinct search modes to cater to different user needs.

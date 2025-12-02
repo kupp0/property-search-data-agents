@@ -198,7 +198,7 @@ async def search_properties(request: SearchRequest, raw_request: Request):
 
             serving_config = search_client.serving_config_path(
                 project=PROJECT_ID,
-                location="global",
+                location=os.getenv("VERTEX_SEARCH_LOCATION", "global"),
                 data_store=data_store_id,
                 serving_config="default_config",
             )

@@ -27,3 +27,8 @@ alloydb-auth-proxy
 get-pip.py
 backend/service.resolved.yaml
 *venv
+
+# Temporary Files
+temp_*.png
+temp_*.jpg
+*.jsonl
