@@ -84,7 +84,8 @@ except Exception as e:
 
 class SearchRequest(BaseModel):
     query: str
-    mode: str = "nl2sql"  # Options: 'nl2sql', 'semantic', 'visual', 'vertex_search'
+    mode: str = "nl2sql"  # Options: 'nl2sql', 'semantic', 'vertex_search'
+    weight: float = 0.6
 
 # ... (Data Models remain same)
 
@@ -142,11 +143,31 @@ async def get_image(gcs_uri: str):
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
         
-        # Open blob as stream (synchronous but acceptable for demo)
-        file_obj = blob.open("rb")
-        return StreamingResponse(file_obj, media_type="image/png")
+        # 1. Try to generate Signed URL (Best for Cloud Run)
+        try:
+            signed_url = blob.generate_signed_url(
+                version="v4",
+                expiration=3600, # 1 hour
+                method="GET"
+            )
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(
+                url=signed_url, 
+                status_code=307,
+                headers={"Cache-Control": "public, max-age=300"}
+            )
+        except Exception as sign_err:
+            # 2. Fallback to Proxy (Best for Local Dev without Service Account keys)
+            print(f"Signed URL generation failed (falling back to proxy): {sign_err}")
+            file_obj = blob.open("rb")
+            return StreamingResponse(
+                file_obj, 
+                media_type="image/jpeg", 
+                headers={"Cache-Control": "public, max-age=86400"}
+            )
+
     except Exception as e:
-        print(f"Image Proxy Error: {e}")
+        print(f"Image Delivery Error: {e}")
         raise HTTPException(404, "Image not found")
 
 @app.post("/api/search")
@@ -209,59 +230,52 @@ async def search_properties(request: SearchRequest, raw_request: Request):
 
 
         # ---------------------------------------------------------
-        # MODE 1: VISUAL SEARCH (Text-to-Image Embedding)
+        # MODE 2: SEMANTIC SEARCH (Hybrid Text + Image)
         # ---------------------------------------------------------
-        elif request.mode == "visual":
-            if not mm_model: 
-                raise HTTPException(500, "Multimodal model not initialized")
+        elif request.mode == "semantic":
+            # Safety check for models
+            if not gemini_text_model or not mm_model:
+                raise HTTPException(500, "Required AI models (Gemini or Multimodal) not initialized")
+
+            print(f"Generating Hybrid embeddings for: '{request.query}' with weight {request.weight}")
             
-            print(f"Generating visual embedding for: '{request.query}'")
-            embeddings = mm_model.get_embeddings(
+            # 1. Generate Text Embedding (Gemini)
+            text_embeddings = gemini_text_model.get_embeddings([request.query])
+            text_vector = str(text_embeddings[0].values)
+
+            # 2. Generate Image Embedding (Multimodal)
+            # We use the query text to find visually similar images
+            image_embeddings = mm_model.get_embeddings(
                 contextual_text=request.query, 
                 dimension=1408
             )
-            vector_str = str(embeddings.text_embedding)
-            
-            # Visual search queries the image_embedding column.
+            image_vector = str(image_embeddings.text_embedding)
+
+            # 3. Build SQL with the weighted formula
+            # Formula: (weight * (1 - text_dist)) + ((1-weight) * (1 - image_dist))
+            # We use <=> (cosine distance). Similarity = 1 - Distance.
             sql = f"""
             SELECT id, title, description, price, city, bedrooms, image_gcs_uri
             FROM "search".property_listings 
-            ORDER BY image_embedding <=> '{vector_str}' 
+            ORDER BY 
+              (
+                ({request.weight} * (1 - ("description_embedding" <=> '{text_vector}'))) + 
+                ((1 - {request.weight}) * (1 - ("image_embedding" <=> '{image_vector}')))
+              ) DESC
             LIMIT 20;
             """
             
-            cursor.execute(sql)
-            display_sql = f"SELECT ... ORDER BY image_embedding <=> '[{vector_str[:20]}...]'::vector (1408 dim)"
-
-            if cursor.description:
-                columns = [desc[0] for desc in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-
-        # ---------------------------------------------------------
-        # MODE 2: SEMANTIC SEARCH (Text-to-Text Embedding - GEMINI)
-        # ---------------------------------------------------------
-        elif request.mode == "semantic":
-            # Safety check for the Gemini model
-            if not gemini_text_model:
-                raise HTTPException(500, "Gemini Text model not initialized")
-
-            print(f"Generating Gemini text embedding for: '{request.query}'")
-            # 1. Generate embedding in Python using new model (defaults to 768 dimensions)
-            embeddings = gemini_text_model.get_embeddings([request.query])
-            vector_str = str(embeddings[0].values)
-
-            # 2. Build SQL with the embedded vector
-            sql = f"""
-            SELECT id, title, description, price, city, bedrooms, image_gcs_uri
-            FROM "search".property_listings 
-            ORDER BY description_embedding <=> '{vector_str}' 
-            LIMIT 20;
-            """
-            
-            display_sql = f"// Model: gemini-embedding-001 (768 dim)\nSELECT ... ORDER BY description_embedding <=> '[{vector_str[:20]}...]'::vector"
+            display_sql = f"""// Hybrid Semantic Search: Text + Image
+// Similarity = 1 - Cosine Distance (<=>)
+// Ranking = Weighted Average of Text & Image Similarity
+SELECT ...
+ORDER BY 
+  (
+    ({request.weight} * (1 - ("description_embedding" <=> '[{text_vector[1:20]}...]'))) + 
+    ({round(1 - request.weight, 1)} * (1 - ("image_embedding" <=> '[{image_vector[1:20]}...]')))
+  ) DESC
+LIMIT 20;"""
            
-            # SQL string is complete, no parameters needed
             cursor.execute(sql)
             
             if cursor.description:
@@ -340,9 +354,8 @@ async def search_properties(request: SearchRequest, raw_request: Request):
         print(f"Backend Error: {e}")
         return {"listings": [], "sql": f"Backend Error: {str(e)}"}
         # Provide a more specific error if a model wasn't initialized
-        if (request.mode == "visual" and not mm_model) or \
-           (request.mode == "semantic" and not gemini_text_model):
-            return {"listings": [], "sql": "Backend Error: A required AI model failed to initialize at startup. Check backend logs."}
+        if request.mode == "semantic" and (not gemini_text_model or not mm_model):
+            return {"listings": [], "sql": "Backend Error: A required AI model (Gemini or Multimodal) failed to initialize. Check backend logs."}
         return {"listings": [], "sql": f"An unexpected error occurred: {str(e)}"}
         
     finally:

@@ -26,3 +26,4 @@ alloydb-auth-proxy
 # Python
 get-pip.py
 backend/service.resolved.yaml
+*venv

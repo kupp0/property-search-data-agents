@@ -4,6 +4,7 @@ import vertexai
 from vertexai.vision_models import ImageGenerationModel
 from vertexai.vision_models import MultiModalEmbeddingModel, Image as VertexImage
 from google.cloud import storage
+from PIL import Image as PilImage
 from dotenv import load_dotenv
 
 # Find and load the .env file from the backend directory
@@ -47,34 +48,42 @@ def generate_and_upload(listing_id, description):
         generated_image = response[0]
         
         # 2. Save locally temporarily
-        temp_filename = f"temp_{listing_id}.png"
-        generated_image.save(temp_filename)
+        temp_png = f"temp_{listing_id}.png"
+        temp_jpg = f"temp_{listing_id}.jpg"
+        generated_image.save(temp_png)
         
-        # 3. Upload to GCS
-        destination_blob_name = f"listings/{listing_id}.png"
+        # 3. Compress to JPEG
+        with PilImage.open(temp_png) as img:
+            img = img.convert("RGB") # Ensure no alpha channel
+            img.save(temp_jpg, "JPEG", quality=85, optimize=True)
+        
+        # 4. Upload to GCS
+        destination_blob_name = f"listings/{listing_id}.jpg"
         bucket = storage_client.bucket(BUCKET_NAME)
         blob = bucket.blob(destination_blob_name)
-        blob.upload_from_filename(temp_filename)
+        blob.upload_from_filename(temp_jpg)
         
         # Public URL (if bucket is public) or gs:// URI
         gcs_uri = f"gs://{BUCKET_NAME}/{destination_blob_name}"
         public_url = f"https://storage.googleapis.com/{BUCKET_NAME}/{destination_blob_name}"
         
         # 4. Generate Multi-Modal Embedding (The "Visual Vector")
-        # We use the local file we just saved
+        # We use the compressed JPEG for consistency
         print(f"[ID: {listing_id}] Calculating visual embeddings...")
-        v_image = VertexImage.load_from_file(temp_filename)
+        v_image = VertexImage.load_from_file(temp_jpg)
         embeddings = embed_model.get_embeddings(image=v_image, dimension=1408)
         vector_data = embeddings.image_embedding
         
-        # Cleanup local file
-        os.remove(temp_filename)
+        # Cleanup local files
+        if os.path.exists(temp_png): os.remove(temp_png)
+        if os.path.exists(temp_jpg): os.remove(temp_jpg)
         
         return public_url, vector_data
 
     except Exception as e:
         print(f"❌ Error processing ID {listing_id}: {e}")
         if os.path.exists(f"temp_{listing_id}.png"): os.remove(f"temp_{listing_id}.png")
+        if os.path.exists(f"temp_{listing_id}.jpg"): os.remove(f"temp_{listing_id}.jpg")
         return None, None
 
 def main():
