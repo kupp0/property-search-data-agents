@@ -146,6 +146,7 @@ For the "Managed Search" mode, you must set up a Vertex AI Search app.
 
 1.  **Enable API**: Enable "Vertex AI Search and Conversation API".
 2.  **Create App**: Create a new "Search" app in "Generic" mode.
+    *   **Region**: Must be **Global**. Regional apps (e.g., `us`, `eu`) are not supported by this demo's default configuration.
 3.  **Create Data Store**:
     *   Source: **AlloyDB for PostgreSQL** (Preview).
     *   Select your AlloyDB table (`search.property_listings`).

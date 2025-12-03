@@ -66,6 +66,7 @@ try:
     print("Models initialized successfully.")
     
     # 3. Initialize Vertex AI Search Client
+    # The SearchServiceClient defaults to the global endpoint if no client_options are provided.
     search_client = discoveryengine.SearchServiceClient()
 
     # 4. Initialize Storage Client
@@ -198,7 +199,7 @@ async def search_properties(request: SearchRequest, raw_request: Request):
 
             serving_config = search_client.serving_config_path(
                 project=PROJECT_ID,
-                location=os.getenv("VERTEX_SEARCH_LOCATION", "global"),
+                location="global",
                 data_store=data_store_id,
                 serving_config="default_config",
             )
