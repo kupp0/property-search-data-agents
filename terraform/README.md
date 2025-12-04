@@ -52,12 +52,14 @@ terraform apply
 -   **Project**: A new Google Cloud Project with enabled APIs.
 -   **Network**: A VPC network (`search-demo-vpc`) with Private Service Access for AlloyDB.
 -   **AlloyDB**:
-    -   Cluster: `hr-dev`
-    -   Instance: `hr-primary` (2 vCPU, 16GB RAM, Public IP)
+    -   Cluster: `search-cluster`
+    -   Instance: `search-primary` (2 vCPU, Private IP only)
     -   Flags: AI & ML integration enabled.
+-   **Bastion Host**: `search-demo-bastion` (e2-micro) for SSH tunneling.
 -   **Artifact Registry**: Repository `search-app-repo`.
--   **IAM**: Grants necessary roles to the default Compute Engine Service Account.
+-   **IAM**: Creates a dedicated Service Account `search-backend-sa` and grants necessary roles.
 -   **Vertex AI Search**: Creates a Data Store `property-listings-ds` linked to AlloyDB (via API call).
+
 
 ## 5. Deploy Application (Optional)
 
@@ -79,8 +81,11 @@ Once the infrastructure is ready, you can automatically generate the configurati
 ## Outputs
 After a successful apply, Terraform will output:
 -   `project_id`
--   `alloydb_public_ip`
 -   `alloydb_cluster_id`
+-   `alloydb_instance_id`
+-   `backend_service_account`
+-   `bastion_instance_name`
+-   `bastion_zone`
 -   `vertex_ai_data_store_id`
 
 You can use these values to configure your `backend/.env` file.

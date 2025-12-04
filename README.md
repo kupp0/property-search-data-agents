@@ -62,28 +62,23 @@ You need these permissions to build images and deploy services:
     * `roles/iam.serviceAccountUser` (To act as the service account)
 
 **2. Cloud Run Service Account Permissions:**
-The identity running the Cloud Run service (default is the Compute Engine default service account) needs:
+The identity running the Cloud Run service is now a **Dedicated Service Account** (`search-backend-sa`), not the default Compute SA. It needs:
 * `roles/alloydb.client`: To connect to AlloyDB.
 * `roles/discoveryengine.editor`: To query Vertex AI Search.
 * `roles/logging.logWriter`: To write logs to Cloud Logging.
 * `roles/serviceusage.serviceUsageConsumer`: To consume Google Cloud APIs.
-* `roles/aiplatform.user`: To use Vertex AI Embeddings (if applicable).
+* `roles/aiplatform.user`: To use Vertex AI Embeddings.
+* `roles/datastore.user`: For Vertex AI Search data access.
+
 
 ### Connectivity & AlloyDB Auth Proxy
 This application uses the **AlloyDB Auth Proxy** pattern to securely connect to the database.
 
-#### Default: Public IP
-By default, this repository is configured to connect via **Public IP**.
-* **Requirement**: Your AlloyDB Instance must have "Public IP" enabled.
-* **Configuration**: The `backend/service.yaml` (and `debug_local.sh`) uses the `--public-ip` flag in the Auth Proxy sidecar arguments.
+#### Private IP (Default)
+The AlloyDB instance is configured with **Private IP only** for enhanced security.
+* **Cloud Run**: Connects via **Direct VPC Egress** to the `search-demo-vpc`.
+* **Local Debugging**: Uses a **Bastion Host** (`search-demo-bastion`) to tunnel connections to the private database.
 
-#### Private IP (VPC Peering / Serverless VPC Access)
-If your AlloyDB instance is on a private VPC and does **not** have a public IP:
-1. **Remove the `--public-ip` flag**: Edit `backend/service.yaml` and `debug_local.sh` to remove this argument.
-2. **VPC Connectivity**: Ensure your Cloud Run service is connected to the VPC:
-    * **Direct VPC Egress** (Recommended): Configure the Cloud Run service to use Direct VPC Egress to the VPC containing AlloyDB.
-    *   **Serverless VPC Access Connector**: Alternatively, use a connector.
-3. **Private Service Connect**: If using PSC, ensure the endpoint is reachable.
 
 ### Database & AI Setup
 
@@ -131,15 +126,20 @@ To enable Visual Search, you need to populate the database with images and embed
     # 2. Install dependencies
     pip install -r backend/requirements.txt
     
-    # 3. Start AlloyDB Auth Proxy (in a separate terminal)
-    # Download the binary if needed:
-    # wget https://storage.googleapis.com/alloydb-auth-proxy/v1.12.0/alloydb-auth-proxy.linux.amd64 -O alloydb-auth-proxy && chmod +x alloydb-auth-proxy
-    ./alloydb-auth-proxy "projects/<PROJECT>/locations/<REGION>/clusters/<CLUSTER>/instances/<INSTANCE>" --address=127.0.0.1 --port=5432 --public-ip
+    # 3. Start AlloyDB Auth Proxy (via Bastion Tunnel)
+    # The bootstrap script expects a local connection.
+    # Use the debug_local.sh script's logic or manually tunnel:
+    gcloud compute ssh search-demo-bastion --zone <REGION>-b -- -L 5432:127.0.0.1:5432
+    # (Then run the proxy on the bastion or tunnel the proxy port)
+    
+    # EASIER: Just run ./debug_local.sh in one terminal to set up the tunnel, 
+    # then run the bootstrap script in another.
     
     # 4. Run the script
     python alloydb\ artefacts/bootstrap_images.py
     ```
     *Note: This script assumes the AlloyDB Auth Proxy is running on `localhost:5432`.*
+
 
 #### 3. Vertex AI Search Setup
 For the "Managed Search" mode, you must set up a Vertex AI Search app.
@@ -175,10 +175,13 @@ To run the application locally in Docker containers (mimicking the Cloud Run env
 ./debug_local.sh
 ```
 This will:
-1. Download and start the **AlloyDB Auth Proxy** locally (using your gcloud credentials).
-2. Build and run the **Backend container** (connected to the proxy).
-3. Build and run the **Frontend container** (connected to the backend).
-4. Access the app at `http://localhost:8081`.
+1. SSH into the **Bastion Host**.
+2. Start the **AlloyDB Auth Proxy** on the Bastion.
+3. Tunnel the connection to your local machine (`localhost:5432`).
+4. Build and run the **Backend container** (connected to the tunnel).
+5. Build and run the **Frontend container** (connected to the backend).
+6. Access the app at `http://localhost:8081`.
+
 
 ### Deployment to Cloud Run
 To deploy the full stack to Google Cloud Run:

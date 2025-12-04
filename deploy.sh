@@ -80,8 +80,9 @@ check_service_account_permissions() {
     PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
     # Cloud Build often uses the Compute Engine default service account by default in some configs,
     # or the Cloud Build Service Account. The error message specifically mentioned the Compute SA.
-    COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-    echo "Build Service Account: $COMPUTE_SA"
+    # UPDATE: We are now using a dedicated SA: search-backend-sa
+    COMPUTE_SA="search-backend-sa@${PROJECT_ID}.iam.gserviceaccount.com"
+    echo "Checking Dedicated Service Account: $COMPUTE_SA"
 
     echo "ℹ️  Note: Builds submitted via gcloud often use this Service Account."
     echo "It needs 'roles/logging.logWriter' and 'roles/artifactregistry.writer'."
@@ -161,9 +162,8 @@ gcloud builds submit backend --tag $BACKEND_IMAGE
 
 # 2. Deploy Backend with AlloyDB Auth Proxy Sidecar
 echo "🚀 Deploying Backend..."
-# We should use the Default Compute Service Account for the runtime identity
-PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
-SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+# We use the Dedicated Service Account for the runtime identity
+SERVICE_ACCOUNT="search-backend-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 echo "Using Runtime Service Account: $SERVICE_ACCOUNT"
 
 # Substitute variables in service.yaml

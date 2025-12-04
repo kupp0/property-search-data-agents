@@ -18,18 +18,33 @@ INSTANCE_URI="${INSTANCE_CONNECTION_NAME}"
 
 echo "🔧 Setting up local debug environment..."
 
-# 1. Start AlloyDB Auth Proxy locally (background)
-echo "🔌 Starting AlloyDB Auth Proxy..."
+# 1. Start AlloyDB Auth Proxy via Bastion (background)
+echo "🔌 Starting AlloyDB Auth Proxy via Bastion..."
 
-if [ ! -f "./alloydb-auth-proxy" ]; then
-    echo "   Proxy binary not found. Downloading..."
-    wget https://storage.googleapis.com/alloydb-auth-proxy/v1.10.0/alloydb-auth-proxy.linux.amd64 -O alloydb-auth-proxy
+BASTION_NAME="search-demo-bastion"
+BASTION_ZONE="${REGION}-b"
+
+# Ensure local proxy binary exists
+if [ ! -f "alloydb-auth-proxy" ]; then
+    echo "   Downloading proxy binary locally..."
+    wget -q https://storage.googleapis.com/alloydb-auth-proxy/v1.10.0/alloydb-auth-proxy.linux.amd64 -O alloydb-auth-proxy
     chmod +x alloydb-auth-proxy
 fi
 
-./alloydb-auth-proxy "$INSTANCE_URI" --address=0.0.0.0 --port=5432 --public-ip --credentials-file ~/.config/gcloud/application_default_credentials.json > proxy.log 2>&1 &
+# Copy proxy to Bastion (since Bastion might not have internet)
+echo "   Copying proxy to Bastion..."
+gcloud compute scp alloydb-auth-proxy $BASTION_NAME:~/alloydb-auth-proxy --zone $BASTION_ZONE --quiet
+gcloud compute ssh $BASTION_NAME --zone $BASTION_ZONE --command "chmod +x alloydb-auth-proxy"
+
+# Start Proxy on Bastion and Tunnel
+# We tunnel local 5432 -> Bastion 5432 (where proxy listens)
+echo "   Establishing SSH tunnel and starting remote proxy..."
+gcloud compute ssh $BASTION_NAME --zone $BASTION_ZONE \
+    --command "./alloydb-auth-proxy \"$INSTANCE_URI\" --address=127.0.0.1 --port=5432" \
+    -- -L 5432:127.0.0.1:5432 > proxy.log 2>&1 &
 PROXY_PID=$!
-echo "   Proxy PID: $PROXY_PID"
+echo "   Proxy/Tunnel PID: $PROXY_PID"
+
 
 # Cleanup function
 cleanup() {

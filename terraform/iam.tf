@@ -5,12 +5,33 @@ data "google_project" "project" {
   project_id = google_project.project.project_id
 }
 
-# Default Compute Engine Service Account
-locals {
-  service_account_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+# Dedicated Service Account for Backend
+resource "google_service_account" "backend_sa" {
+  account_id   = "search-backend-sa"
+  display_name = "Search Backend Service Account"
+  project      = google_project.project.project_id
 }
 
-# Grant required roles to the Service Account
+# Default Compute Engine Service Account (Used by Cloud Build)
+locals {
+  compute_sa_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# Grant required roles to the Default Compute SA (for Cloud Build)
+resource "google_project_iam_member" "compute_sa_roles" {
+  for_each = toset([
+    "roles/logging.logWriter",
+    "roles/storage.objectViewer",
+    "roles/artifactregistry.writer"
+  ])
+
+  project = google_project.project.project_id
+  role    = each.key
+  member  = "serviceAccount:${local.compute_sa_email}"
+}
+
+
+# Grant required roles to the Dedicated Service Account
 resource "google_project_iam_member" "sa_roles" {
   for_each = toset([
     "roles/alloydb.client",
@@ -18,17 +39,18 @@ resource "google_project_iam_member" "sa_roles" {
     "roles/artifactregistry.repoAdmin",
     "roles/serviceusage.serviceUsageConsumer",
     "roles/aiplatform.user",
-    "roles/aiplatform.user",
     "roles/discoveryengine.editor",
-    "roles/storage.objectAdmin"
+    "roles/storage.objectAdmin",
+    "roles/datastore.user" # Often needed for Vertex AI Search if using Datastore mode, but here it's likely Discovery Engine
   ])
 
   project = google_project.project.project_id
   role    = each.key
-  member  = "serviceAccount:${local.service_account_email}"
+  member  = "serviceAccount:${google_service_account.backend_sa.email}"
 
   depends_on = [google_project_service.services]
 }
+
 
 # AlloyDB Service Agent (Required for AI/ML integration)
 # AlloyDB Service Agent (Required for AI/ML integration)

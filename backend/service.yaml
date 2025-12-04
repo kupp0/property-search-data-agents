@@ -12,6 +12,8 @@ spec:
     metadata:
       annotations:
         run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/network-interfaces: '[{"network":"search-demo-vpc","subnetwork":"search-demo-vpc"}]'
+        run.googleapis.com/vpc-access-egress: private-ranges-only
     spec:
       # The Service Account identity that this container will run as.
       # It must have permissions to access Vertex AI, AlloyDB, and GCS.
@@ -50,11 +52,9 @@ spec:
         - "${INSTANCE_CONNECTION_NAME}"
         - "--address=127.0.0.1"
         - "--port=5432"
-        # CRITICAL: "--public-ip" tells the proxy to connect via the instance's PUBLIC IP address.
-        # This requires that your AlloyDB instance has 'Public IP' enabled in its settings.
-        # If your instance only has Private IP, you would need a VPC Connector or Direct VPC Egress,
-        # and you would remove this flag.
-        - "--public-ip"
+        # CRITICAL: "--public-ip" removed for Private IP access.
+        # We use Direct VPC Egress to connect to the Private IP.
+        # - "--public-ip"
         # - "--credential-file=/secrets/key.json" # If using specific credentials
         resources:
           limits:

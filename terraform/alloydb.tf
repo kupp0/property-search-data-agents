@@ -3,7 +3,7 @@ resource "google_alloydb_cluster" "default" {
   location   = var.region
   project    = google_project.project.project_id
   
-  database_version = "POSTGRES_17"
+  database_version = "POSTGRES_16"
 
   network_config {
     network = google_compute_network.vpc_network.id
@@ -47,7 +47,8 @@ resource "google_alloydb_instance" "primary" {
   }
 
   # Enable Public IP
+  # Public IP Disabled for security
   network_config {
-    enable_public_ip = true
+    enable_public_ip = false
   }
 }
