@@ -10,5 +10,5 @@ tools:
   search-properties:
     kind: alloydb-ai-nl
     source: alloydb-local
-    description: "Search for properties using natural language. You can ask for specific features, price ranges, locations, or vibes (e.g., 'modern apartment in Zurich under 5k'). ALWAYS include the 'image_gcs_uri' column in your SQL query."
+    description: "Search for properties using natural language. You can ask for specific features, price ranges, locations, or vibes (e.g., 'modern apartment in Zurich under 5k'). ALWAYS include the 'image_gcs_uri' column in your SQL query. Ensure the generated SQL strictly filters for the user's requirements."
     nlConfig: "property_search_config"

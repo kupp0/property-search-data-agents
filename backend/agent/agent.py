@@ -29,6 +29,7 @@ agent = Agent(
         "Mention that you have updated the main view with the results. "
         "Ask if the user wants to refine the search (e.g., by price, location, or amenities). "
         "IMPORTANT: If you find specific properties in the search results, you MUST also output a JSON block at the end of your response containing the property details. "
+        "CRITICAL: The JSON block must ONLY contain properties that STRICTLY match the user's request. Filter out any irrelevant results returned by the tool (e.g. if user asks for 'wooden cabin', do NOT include apartments). "
         "The JSON block must be wrapped in ```json_properties and ``` tags. "
         "Format: "
         "```json_properties\n"

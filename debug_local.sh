@@ -56,6 +56,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# --- PRE-CLEANUP ---
+echo "🧹 Cleaning up existing containers..."
+sudo docker rm -f search-backend search-frontend agent-service toolbox-service 2>/dev/null || true
+
 # --- BUILD LOCALLY ---
 echo "🔨 Building images locally to avoid auth issues..."
 sudo docker build -t local-search-backend backend/
