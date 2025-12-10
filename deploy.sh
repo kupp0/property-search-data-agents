@@ -176,6 +176,7 @@ export DB_USER
 export DB_NAME
 export DB_PASSWORD
 export INSTANCE_CONNECTION_NAME
+export VERTEX_AI_SEARCH_DATA_STORE_ID
 
 
 envsubst < backend/service.yaml > backend/service.resolved.yaml
@@ -183,9 +184,10 @@ envsubst < backend/service.yaml > backend/service.resolved.yaml
 gcloud run services replace backend/service.resolved.yaml --region $REGION
 
 # Allow unauthenticated access (for demo purposes)
+# Allow current user access (Org Policy restricts allUsers)
 gcloud run services add-iam-policy-binding $BACKEND_SERVICE_NAME \
     --region $REGION \
-    --member="allUsers" \
+    --member="user:$CURRENT_USER" \
     --role="roles/run.invoker"
 
 # Get Backend URL
@@ -206,9 +208,10 @@ gcloud run services replace backend/mcp_server/service.resolved.yaml --region $R
 
 # Allow unauthenticated access (internal/demo) - or restrict if needed
 # For simplicity in this demo, we allow unauthenticated so Agent can call it easily without ID token logic
+# Allow current user access
 gcloud run services add-iam-policy-binding $TOOLBOX_SERVICE_NAME \
     --region $REGION \
-    --member="allUsers" \
+    --member="user:$CURRENT_USER" \
     --role="roles/run.invoker"
 
 TOOLBOX_URL=$(gcloud run services describe $TOOLBOX_SERVICE_NAME --platform managed --region $REGION --format 'value(status.url)')
@@ -229,7 +232,7 @@ gcloud run services replace backend/agent/service.resolved.yaml --region $REGION
 
 gcloud run services add-iam-policy-binding $AGENT_SERVICE_NAME \
     --region $REGION \
-    --member="allUsers" \
+    --member="user:$CURRENT_USER" \
     --role="roles/run.invoker"
 
 AGENT_URL=$(gcloud run services describe $AGENT_SERVICE_NAME --platform managed --region $REGION --format 'value(status.url)')
@@ -246,7 +249,7 @@ gcloud run deploy $FRONTEND_SERVICE_NAME \
     --image $FRONTEND_IMAGE \
     --region $REGION \
     --platform managed \
-    --allow-unauthenticated \
+    --no-allow-unauthenticated \
     --set-env-vars BACKEND_URL=$BACKEND_URL,AGENT_URL=$AGENT_URL
 
 # Get Frontend URL

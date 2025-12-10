@@ -30,13 +30,15 @@ server {
     location /agent/ {
         resolver 8.8.8.8 valid=30s;
         
-        # Rewrite /agent/chat to /chat
-        rewrite ^/agent/(.*) /$1 break;
-        
-        proxy_pass ${AGENT_URL};
+        # Standard proxy_pass with trailing slash to map /agent/path -> /path
+        proxy_pass AGENT_URL_PLACEHOLDER/;
 
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Required for Cloud Run backends (SNI)
+        proxy_ssl_server_name on;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
     }
 }

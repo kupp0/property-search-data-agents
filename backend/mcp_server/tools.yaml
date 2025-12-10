@@ -8,6 +8,7 @@ sources:
     database: "postgres"
     user: "postgres"
     password: "${DB_PASSWORD}"
+    ipType: "PRIVATE"
 tools:
   search-properties:
     kind: alloydb-ai-nl

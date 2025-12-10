@@ -193,9 +193,9 @@ async def search_properties(request: SearchRequest, raw_request: Request):
             if not search_client:
                  raise HTTPException(500, "Vertex Search client not initialized.")
 
-            data_store_id = os.getenv("VERTEX_SEARCH_DATA_STORE_ID")
+            data_store_id = os.getenv("VERTEX_AI_SEARCH_DATA_STORE_ID")
             if not data_store_id:
-                raise HTTPException(500, "VERTEX_SEARCH_DATA_STORE_ID is missing in .env")
+                raise HTTPException(500, "VERTEX_AI_SEARCH_DATA_STORE_ID is missing in .env")
 
             serving_config = search_client.serving_config_path(
                 project=PROJECT_ID,
