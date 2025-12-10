@@ -142,6 +142,7 @@ echo "📦 Switching to Artifact Registry: $REPO_URI"
 if ! gcloud artifacts repositories describe $REPO_NAME --location=$REGION >/dev/null 2>&1; then
     echo "Creating Artifact Registry repository '$REPO_NAME'..."
     gcloud artifacts repositories create $REPO_NAME \
+        --project=$PROJECT_ID \
         --repository-format=docker \
         --location=$REGION \
         --description="Docker repository for Search App"
@@ -158,7 +159,7 @@ FRONTEND_IMAGE="$REPO_URI/$FRONTEND_SERVICE_NAME:$TAG"
 
 # 1. Build and Push Backend Image
 echo "📦 Building Backend Image..."
-gcloud builds submit backend --tag $BACKEND_IMAGE
+gcloud builds submit backend --tag $BACKEND_IMAGE --project=$PROJECT_ID
 
 # 2. Deploy Backend with AlloyDB Auth Proxy Sidecar
 echo "🚀 Deploying Backend..."
@@ -181,7 +182,7 @@ export VERTEX_AI_SEARCH_DATA_STORE_ID
 
 envsubst < backend/service.yaml > backend/service.resolved.yaml
 
-gcloud run services replace backend/service.resolved.yaml --region $REGION
+gcloud run services replace backend/service.resolved.yaml --region $REGION --project=$PROJECT_ID
 
 # Allow unauthenticated access (for demo purposes)
 # Allow current user access (Org Policy restricts allUsers)
@@ -198,13 +199,13 @@ echo "✅ Backend deployed at: $BACKEND_URL"
 echo "📦 Building Toolbox Image..."
 TOOLBOX_SERVICE_NAME="search-toolbox"
 TOOLBOX_IMAGE="$REPO_URI/$TOOLBOX_SERVICE_NAME:$TAG"
-gcloud builds submit backend/mcp_server --tag $TOOLBOX_IMAGE
+gcloud builds submit backend/mcp_server --tag $TOOLBOX_IMAGE --project=$PROJECT_ID
 
 # 4. Deploy Toolbox
 echo "🚀 Deploying Toolbox..."
 export TOOLBOX_IMAGE
 envsubst < backend/mcp_server/service.yaml > backend/mcp_server/service.resolved.yaml
-gcloud run services replace backend/mcp_server/service.resolved.yaml --region $REGION
+gcloud run services replace backend/mcp_server/service.resolved.yaml --region $REGION --project=$PROJECT_ID
 
 # Allow unauthenticated access (internal/demo) - or restrict if needed
 # For simplicity in this demo, we allow unauthenticated so Agent can call it easily without ID token logic
@@ -221,14 +222,14 @@ echo "✅ Toolbox deployed at: $TOOLBOX_URL"
 echo "📦 Building Agent Image..."
 AGENT_SERVICE_NAME="search-agent"
 AGENT_IMAGE="$REPO_URI/$AGENT_SERVICE_NAME:$TAG"
-gcloud builds submit backend/agent --tag $AGENT_IMAGE
+gcloud builds submit backend/agent --tag $AGENT_IMAGE --project=$PROJECT_ID
 
 # 6. Deploy Agent
 echo "🚀 Deploying Agent..."
 export AGENT_IMAGE
 export TOOLBOX_URL
 envsubst < backend/agent/service.yaml > backend/agent/service.resolved.yaml
-gcloud run services replace backend/agent/service.resolved.yaml --region $REGION
+gcloud run services replace backend/agent/service.resolved.yaml --region $REGION --project=$PROJECT_ID
 
 gcloud run services add-iam-policy-binding $AGENT_SERVICE_NAME \
     --region $REGION \
@@ -241,7 +242,7 @@ echo "✅ Agent deployed at: $AGENT_URL"
 
 # 7. Build and Push Frontend Image
 echo "📦 Building Frontend Image..."
-gcloud builds submit frontend --tag $FRONTEND_IMAGE
+gcloud builds submit frontend --tag $FRONTEND_IMAGE --project=$PROJECT_ID
 
 # 4. Deploy Frontend
 echo "🚀 Deploying Frontend..."
@@ -249,6 +250,7 @@ gcloud run deploy $FRONTEND_SERVICE_NAME \
     --image $FRONTEND_IMAGE \
     --region $REGION \
     --platform managed \
+    --project=$PROJECT_ID \
     --no-allow-unauthenticated \
     --set-env-vars BACKEND_URL=$BACKEND_URL,AGENT_URL=$AGENT_URL
 
