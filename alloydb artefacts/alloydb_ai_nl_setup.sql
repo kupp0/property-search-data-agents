@@ -186,8 +186,15 @@ FROM alloydb_ai_nl.fragment_store_view
 WHERE config = 'property_search_config';
 
 -- Test Query
--- Expected: Filters for City='Zurich', Price<=2500, Beds>=3, Description NOT Ground floor
+
 SELECT alloydb_ai_nl.get_sql(
     'property_search_config',
     'Show me cheap family apartments in Zurich not ground floor'
 ) ->> 'sql';
+
+
+-- Execute NL Query function
+SELECT alloydb_ai_nl.execute_nl_query(
+    'property_search_config',
+    'show me wooden cabin min 2 rooms below 8k'
+);
