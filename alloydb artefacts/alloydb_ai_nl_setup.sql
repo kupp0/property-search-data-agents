@@ -83,6 +83,8 @@ SELECT alloydb_ai_nl.refresh_value_index(nl_config_id_in => 'property_search_con
 -- SELECT alloydb_ai_nl.generate_templates('property_search_config');
 
 -- ### 1 ### With semantic intent in the search query
+
+-- ### 1 ### With semantic intent in the search query
 SELECT alloydb_ai_nl.add_template(
     nl_config_id => 'property_search_config',
     intent       => 'Show me modern appartments in Zurich with industrial look up to 6k with min 2 rooms',
@@ -96,7 +98,7 @@ SELECT alloydb_ai_nl.add_template(
           ((0.6 * (1 - ("description_embedding" <=> embedding('gemini-embedding-001', 'modern appartments with industrial look')::vector))) + 
            (0.4 * (1 - ("image_embedding" <=> ai.text_embedding(model_id => 'multimodalembedding@001', content => 'modern appartments with industrial look')::vector))))
         DESC
-        LIMIT 20
+        LIMIT 50
     $$,
     check_intent => TRUE
 ); 
@@ -111,7 +113,7 @@ SELECT alloydb_ai_nl.add_template(
         WHERE LOWER("city") = LOWER('Zurich')          -- Filter by city
           AND "price" <= 6000            -- Filter by price up to 6000
           AND "bedrooms" >= 2            -- Filter by min 2 rooms 
-        LIMIT 20
+        LIMIT 50
     $$,
     check_intent => TRUE
 ); 
@@ -119,7 +121,7 @@ SELECT alloydb_ai_nl.add_template(
 -- ### 3 ### Only semantic search
 SELECT alloydb_ai_nl.add_template(
     nl_config_id => 'property_search_config',
-    intent       => 'Lovely wooden cabin',
+    intent       => 'Show me lovely wooden cabin',
     sql          => $$
         SELECT image_gcs_uri, id, title, description, bedrooms, price, city
         FROM search.property_listings
@@ -127,7 +129,7 @@ SELECT alloydb_ai_nl.add_template(
           ((0.6 * (1 - ("description_embedding" <=> embedding('gemini-embedding-001', 'Lovely wooden cabin')::vector))) + 
            (0.4 * (1 - ("image_embedding" <=> ai.text_embedding(model_id => 'multimodalembedding@001', content => 'Lovely wooden cabbin')::vector))))
         DESC
-        LIMIT 20
+        LIMIT 50
     $$,
     check_intent => TRUE
 ); 
