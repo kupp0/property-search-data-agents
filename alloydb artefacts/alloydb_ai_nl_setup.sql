@@ -98,7 +98,7 @@ SELECT alloydb_ai_nl.add_template(
           ((0.6 * (1 - ("description_embedding" <=> embedding('gemini-embedding-001', 'modern appartments with industrial look')::vector))) + 
            (0.4 * (1 - ("image_embedding" <=> ai.text_embedding(model_id => 'multimodalembedding@001', content => 'modern appartments with industrial look')::vector))))
         DESC
-        LIMIT 50
+        LIMIT 25
     $$,
     check_intent => TRUE
 ); 
@@ -113,7 +113,7 @@ SELECT alloydb_ai_nl.add_template(
         WHERE LOWER("city") = LOWER('Zurich')          -- Filter by city
           AND "price" <= 6000            -- Filter by price up to 6000
           AND "bedrooms" >= 2            -- Filter by min 2 rooms 
-        LIMIT 50
+        LIMIT 25
     $$,
     check_intent => TRUE
 ); 
@@ -129,7 +129,7 @@ SELECT alloydb_ai_nl.add_template(
           ((0.6 * (1 - ("description_embedding" <=> embedding('gemini-embedding-001', 'Lovely wooden cabin')::vector))) + 
            (0.4 * (1 - ("image_embedding" <=> ai.text_embedding(model_id => 'multimodalembedding@001', content => 'Lovely wooden cabbin')::vector))))
         DESC
-        LIMIT 50
+        LIMIT 25
     $$,
     check_intent => TRUE
 ); 
@@ -137,22 +137,6 @@ SELECT alloydb_ai_nl.add_template(
 
 -- 4. BUSINESS LOGIC FRAGMENTS
 -- ===================================================================================
-
--- [Fragment] Negation handling
-SELECT alloydb_ai_nl.add_fragment(
-    nl_config_id  => 'property_search_config',
-    table_aliases => ARRAY['search.property_listings'],
-    intent        => 'not ground floor',
-    fragment      => $$ (description NOT ILIKE '%ground floor%' AND description NOT ILIKE '%parterre%') $$
-);
-
--- [Fragment] Ambiguity handling for "New"
-SELECT alloydb_ai_nl.add_fragment(
-    nl_config_id  => 'property_search_config',
-    table_aliases => ARRAY['search.property_listings'],
-    intent        => 'new',
-    fragment      => $$ (description ILIKE '%newly built%' OR description ILIKE '%first occupation%' OR description ILIKE '%modern%') $$
-);
 
 -- [Fragment] "Luxury" Definition
 SELECT alloydb_ai_nl.add_fragment(
@@ -186,13 +170,6 @@ SELECT alloydb_ai_nl.add_fragment(
     fragment      => 'bedrooms = 0'
 );
 
--- [Fragment] "Outdoor Space" Definition
-SELECT alloydb_ai_nl.add_fragment(
-    nl_config_id  => 'property_search_config',
-    table_aliases => ARRAY['search.property_listings'],
-    intent        => 'outdoor space',
-    fragment      => $$ (description ILIKE '%garden%' OR description ILIKE '%terrace%' OR description ILIKE '%balcony%') $$
-);
 
 
 -- 5. VERIFICATION
