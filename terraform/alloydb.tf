@@ -3,7 +3,7 @@ resource "google_alloydb_cluster" "default" {
   location   = var.region
   project    = google_project.project.project_id
 
-  database_version = "POSTGRES_16"
+  database_version = "POSTGRES_17"
 
   network_config {
     network = google_compute_network.vpc_network.id
