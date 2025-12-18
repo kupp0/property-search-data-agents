@@ -24,7 +24,7 @@ spec:
         - name: GOOGLE_CLOUD_REGION
           value: "${REGION}"
         - name: GOOGLE_CLOUD_LOCATION
-          value: "${REGION}"
+          value: "global"
         - name: GOOGLE_GENAI_USE_VERTEXAI
           value: "true"
         - name: TOOLBOX_URL

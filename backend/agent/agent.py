@@ -91,7 +91,7 @@ system_instruction = dedent("""
 # Define the Agent
 agent = Agent(
     name="property_agent",
-    model="gemini-2.5-flash", # User requested newer models (2.5+)
+    model="gemini-3-flash-preview", # User requested newer models (2.5+)
     description="Agent to answer questions about properties using natural language search.",
     instruction=system_instruction,
     tools=tools,

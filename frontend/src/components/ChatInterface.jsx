@@ -101,7 +101,7 @@ const ChatInterface = ({ onClose, onResultsFound }) => {
                         <h3 className="font-bold text-slate-900 dark:text-white">AI Agent</h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            Online • Powered by Gemini 2.5
+                            Online • Powered by Gemini 3
                         </p>
                     </div>
                 </div>
