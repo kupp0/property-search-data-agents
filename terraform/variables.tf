@@ -38,4 +38,10 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "subnet_cidr" {
+  description = "The CIDR block for the subnet"
+  type        = string
+  default     = "10.0.0.0/24"
+}
+
 

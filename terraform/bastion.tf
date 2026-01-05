@@ -21,7 +21,8 @@ resource "google_compute_instance" "bastion" {
   project = google_project.project.project_id
 
   network_interface {
-    network = google_compute_network.vpc_network.id
+    network    = google_compute_network.vpc_network.id
+    subnetwork = google_compute_subnetwork.default.id
     # No public IP needed if we use IAP
     # But for IAP to work, we need firewall rules.
   }

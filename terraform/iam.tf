@@ -11,13 +11,13 @@ locals {
 }
 
 # Grant required roles to the Service Account
+# Grant required roles to the Service Account
 resource "google_project_iam_member" "sa_roles" {
   for_each = toset([
     "roles/alloydb.client",
     "roles/logging.logWriter",
     "roles/artifactregistry.repoAdmin",
     "roles/serviceusage.serviceUsageConsumer",
-    "roles/aiplatform.user",
     "roles/aiplatform.user",
     "roles/discoveryengine.editor",
     "roles/storage.objectAdmin"
@@ -35,6 +35,14 @@ resource "google_project_service_identity" "cloudbuild_sa" {
   provider = google-beta
   project  = google_project.project.project_id
   service  = "cloudbuild.googleapis.com"
+  depends_on = [google_project_service.services]
+}
+
+# We must explicitly wait for the AlloyDB service identity to be created.
+resource "google_project_service_identity" "alloydb_sa" {
+  provider = google-beta
+  project  = google_project.project.project_id
+  service  = "alloydb.googleapis.com"
   depends_on = [google_project_service.services]
 }
 

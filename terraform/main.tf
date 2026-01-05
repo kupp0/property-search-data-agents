@@ -43,7 +43,8 @@ resource "google_project_service" "services" {
     "orgpolicy.googleapis.com",
     "cloudaicompanion.googleapis.com",
     "monitoring.googleapis.com",
-    "cloudtrace.googleapis.com"
+    "cloudtrace.googleapis.com",
+    "secretmanager.googleapis.com"
   ])
 
   project = google_project.project.project_id
@@ -58,6 +59,17 @@ resource "google_compute_network" "vpc_network" {
   project                 = google_project.project.project_id
   auto_create_subnetworks = false
   depends_on              = [google_project_service.services]
+}
+
+# Subnet
+resource "google_compute_subnetwork" "default" {
+  name          = "search-demo-vpc" # Must match service.yaml expectations
+  ip_cidr_range = var.subnet_cidr
+  region        = var.region
+  network       = google_compute_network.vpc_network.id
+  project       = google_project.project.project_id
+
+  private_ip_google_access = true
 }
 
 # Private Service Access for AlloyDB

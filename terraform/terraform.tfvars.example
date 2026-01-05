@@ -1,5 +1,0 @@
-project_id         = "your-project-id-here"
-billing_account_id = "000000-000000-000000"
-region             = "europe-west1"
-zone               = "europe-west1-b"
-db_password        = "ChangeMe123!" # Must be complex
