@@ -15,7 +15,7 @@ This script generates AI images for listings using Imagen, creates embeddings, u
     cd ../terraform
     ./generate_env.sh
     ```
-    Or manually create it based on `../example.env`.
+    Or manually create it based on `../example.env`. The /setup_env.sh script also helps you setting up all required environment variables.
 
 2.  **AlloyDB Auth Proxy**:
     The script connects to AlloyDB via `127.0.0.1:5432`. You must have the Auth Proxy running.
