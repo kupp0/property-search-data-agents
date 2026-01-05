@@ -5,12 +5,13 @@ data "google_project" "project" {
   project_id = google_project.project.project_id
 }
 
-# Default Compute Engine Service Account
-locals {
-  service_account_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+
+resource "google_service_account" "search_backend_sa" {
+  account_id   = "search-backend-sa"
+  display_name = "Search Backend Service Account"
+  project      = google_project.project.project_id
 }
 
-# Grant required roles to the Service Account
 # Grant required roles to the Service Account
 resource "google_project_iam_member" "sa_roles" {
   for_each = toset([
@@ -26,7 +27,7 @@ resource "google_project_iam_member" "sa_roles" {
 
   project = google_project.project.project_id
   role    = each.key
-  member  = "serviceAccount:${local.service_account_email}"
+  member  = "serviceAccount:${google_service_account.search_backend_sa.email}"
 
   depends_on = [google_project_service.services]
 }
