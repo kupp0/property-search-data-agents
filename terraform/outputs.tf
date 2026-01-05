@@ -24,3 +24,7 @@ output "bastion_ssh_command" {
   value = "gcloud compute ssh ${google_compute_instance.bastion.name} --zone ${var.zone} --tunnel-through-iap"
 }
 
+
+output "alloydb_sa_email" {
+  value = google_project_service_identity.alloydb_sa.email
+}

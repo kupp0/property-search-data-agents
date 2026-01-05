@@ -88,7 +88,7 @@ check_service_account_permissions() {
     echo "Checking Dedicated Service Account: $COMPUTE_SA"
 
     echo "ℹ️  Note: Builds submitted via gcloud often use this Service Account."
-    echo "It needs 'roles/logging.logWriter' and 'roles/artifactregistry.writer'."
+    echo "It needs 'roles/logging.logWriter', 'roles/artifactregistry.repoAdmin', 'roles/alloydb.client', 'roles/serviceusage.serviceUsageConsumer', 'roles/aiplatform.user', 'roles/discoveryengine.editor', 'roles/storage.objectAdmin', and 'roles/secretmanager.secretAccessor'."
     
     # Check if we can see the policy (heuristic)
     SA_ROLES=$(gcloud projects get-iam-policy $PROJECT_ID \
@@ -99,7 +99,10 @@ check_service_account_permissions() {
     if echo "$SA_ROLES" | grep -q "roles/logging.logWriter" && \
        echo "$SA_ROLES" | grep -q "roles/artifactregistry.repoAdmin" && \
        echo "$SA_ROLES" | grep -q "roles/alloydb.client" && \
-       echo "$SA_ROLES" | grep -q "roles/serviceusage.serviceUsageConsumer"; then
+       echo "$SA_ROLES" | grep -q "roles/serviceusage.serviceUsageConsumer" && \
+       echo "$SA_ROLES" | grep -q "roles/aiplatform.user" && \
+       echo "$SA_ROLES" | grep -q "roles/discoveryengine.editor" && \
+       echo "$SA_ROLES" | grep -q "roles/storage.objectAdmin"; then
         echo "✅ Service Account appears to have necessary roles."
     else
         echo "⚠️  WARNING: Service Account '$COMPUTE_SA' might be missing roles."
@@ -119,6 +122,18 @@ check_service_account_permissions() {
         echo "gcloud projects add-iam-policy-binding $PROJECT_ID \\"
         echo "    --member='serviceAccount:$COMPUTE_SA' \\"
         echo "    --role='roles/serviceusage.serviceUsageConsumer'"
+        echo "gcloud projects add-iam-policy-binding $PROJECT_ID \\"
+        echo "    --member='serviceAccount:$COMPUTE_SA' \\"
+        echo "    --role='roles/aiplatform.user'"
+        echo "gcloud projects add-iam-policy-binding $PROJECT_ID \\"
+        echo "    --member='serviceAccount:$COMPUTE_SA' \\"
+        echo "    --role='roles/discoveryengine.editor'"
+        echo "gcloud projects add-iam-policy-binding $PROJECT_ID \\"
+        echo "    --member='serviceAccount:$COMPUTE_SA' \\"
+        echo "    --role='roles/storage.objectAdmin'"
+        echo "gcloud projects add-iam-policy-binding $PROJECT_ID \\"
+        echo "    --member='serviceAccount:$COMPUTE_SA' \\"
+        echo "    --role='roles/secretmanager.secretAccessor'"
 
         echo ""
         echo "You can copy and run the above commands manually."

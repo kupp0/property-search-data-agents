@@ -20,7 +20,8 @@ resource "google_project_iam_member" "sa_roles" {
     "roles/serviceusage.serviceUsageConsumer",
     "roles/aiplatform.user",
     "roles/discoveryengine.editor",
-    "roles/storage.objectAdmin"
+    "roles/storage.objectAdmin",
+    "roles/secretmanager.secretAccessor"
   ])
 
   project = google_project.project.project_id
