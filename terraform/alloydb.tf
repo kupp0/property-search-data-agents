@@ -4,7 +4,7 @@ resource "google_alloydb_cluster" "default" {
   project    = google_project.project.project_id
 
   database_version = "POSTGRES_17"
-
+  deletion_protection=false
   network_config {
     network = google_compute_network.vpc_network.id
   }

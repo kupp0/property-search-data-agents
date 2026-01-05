@@ -22,8 +22,7 @@ resource "google_compute_instance" "bastion" {
 
   network_interface {
     network = google_compute_network.vpc_network.id
-    # No public IP needed if we use IAP, but for simplicity in this demo we might want one?
-    # Actually, IAP is better. Let's stick to IAP.
+    # No public IP needed if we use IAP
     # But for IAP to work, we need firewall rules.
   }
 

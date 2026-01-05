@@ -5,33 +5,12 @@ data "google_project" "project" {
   project_id = google_project.project.project_id
 }
 
-# Dedicated Service Account for Backend
-resource "google_service_account" "backend_sa" {
-  account_id   = "search-backend-sa"
-  display_name = "Search Backend Service Account"
-  project      = google_project.project.project_id
-}
-
-# Default Compute Engine Service Account (Used by Cloud Build)
+# Default Compute Engine Service Account
 locals {
-  compute_sa_email = "${google_project.project.number}-compute@developer.gserviceaccount.com"
+  service_account_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
 
-# Grant required roles to the Default Compute SA (for Cloud Build)
-resource "google_project_iam_member" "compute_sa_roles" {
-  for_each = toset([
-    "roles/logging.logWriter",
-    "roles/storage.objectViewer",
-    "roles/artifactregistry.repoAdmin"
-  ])
-
-  project = google_project.project.project_id
-  role    = each.key
-  member  = "serviceAccount:${local.compute_sa_email}"
-}
-
-
-# Grant required roles to the Dedicated Service Account
+# Grant required roles to the Service Account
 resource "google_project_iam_member" "sa_roles" {
   for_each = toset([
     "roles/alloydb.client",
@@ -39,38 +18,33 @@ resource "google_project_iam_member" "sa_roles" {
     "roles/artifactregistry.repoAdmin",
     "roles/serviceusage.serviceUsageConsumer",
     "roles/aiplatform.user",
-
-    "roles/storage.objectAdmin",
-    "roles/datastore.user", # Often needed for Vertex AI Search if using Datastore mode, but here it's likely Discovery Engine
-    "roles/secretmanager.secretAccessor"
+    "roles/aiplatform.user",
+    "roles/discoveryengine.editor",
+    "roles/storage.objectAdmin"
   ])
 
   project = google_project.project.project_id
   role    = each.key
-  member  = "serviceAccount:${google_service_account.backend_sa.email}"
+  member  = "serviceAccount:${local.service_account_email}"
 
   depends_on = [google_project_service.services]
 }
 
-
-# AlloyDB Service Agent (Required for AI/ML integration)
-# AlloyDB Service Agent (Required for AI/ML integration)
-# We must explicitly wait for the service identity to be created/available.
-resource "google_project_service_identity" "alloydb_sa" {
+# We must explicitly wait for the Cloud Build service identity to be created.
+resource "google_project_service_identity" "cloudbuild_sa" {
   provider = google-beta
   project  = google_project.project.project_id
-  service  = "alloydb.googleapis.com"
-
+  service  = "cloudbuild.googleapis.com"
   depends_on = [google_project_service.services]
 }
+
 
 # Cloud Build Service Account Permissions
 # Required to push images to Artifact Registry
 resource "google_project_iam_member" "cloudbuild_sa_ar_writer" {
   project = google_project.project.project_id
   role    = "roles/artifactregistry.repoAdmin"
-  member  = "serviceAccount:${google_project.project.number}@cloudbuild.gserviceaccount.com"
-
+  member  = "serviceAccount:${google_project_service_identity.cloudbuild_sa.email}"
 }
 
 resource "google_project_iam_member" "alloydb_sa_vertex_ai" {
