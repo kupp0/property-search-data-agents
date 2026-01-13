@@ -30,30 +30,6 @@ const EXAMPLES = [
         ]
     },
     {
-        id: 'negative',
-        label: 'Negative Filter',
-        query: "Modern flat in Bern not ground floor",
-        title: 'The "Negative" Filter (Hardening)',
-        what: 'Handling exclusions, which is typically hard for pure vector search.',
-        why: [
-            { label: 'Not ground floor', desc: "Triggers your specific negation Fragment (NOT ILIKE '%ground floor%')." },
-            { label: 'Modern', desc: 'Triggers your "New" fragment OR is passed to vector search depending on the match strength.' },
-            { label: 'Bern', desc: 'City filter.' }
-        ]
-    },
-    {
-        id: 'implicit',
-        label: 'Implicit Feature',
-        query: "New apartment with outdoor space under 4000",
-        title: 'The "Implicit" Feature Search',
-        what: 'Combining explicit numeric filters with "soft" feature fragments.',
-        why: [
-            { label: 'New', desc: "Triggers Fragment (description ILIKE '%newly built%'...)." },
-            { label: 'Outdoor space', desc: 'Triggers Fragment (...garden OR terrace OR balcony...).' },
-            { label: 'Under 4000', desc: 'The LLM natively understands this numeric constraint (price < 4000) and injects it via WHERE 1=1.' }
-        ]
-    },
-    {
         id: 'vibe',
         label: 'Pure Vibe',
         query: "A quiet place to study near the water",

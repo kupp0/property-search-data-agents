@@ -1,9 +1,7 @@
 fastapi
 uvicorn
-psycopg2-binary
 python-dotenv
 pydantic
-google-cloud-aiplatform>=1.48.0
 google-cloud-storage
-google-cloud-discoveryengine
-Pillow
+requests
+google-auth

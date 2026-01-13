@@ -1,0 +1,7 @@
+backend/venv
+frontend/node_modules
+alloydb-auth-proxy
+.git
+.gitignore
+*.log
+tmp

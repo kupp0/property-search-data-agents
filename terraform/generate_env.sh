@@ -31,7 +31,7 @@ REGION=$(cd "$TERRAFORM_DIR" && grep 'region' terraform.tfvars | cut -d'=' -f2 |
 
 # Fallback for Region if not in tfvars (default)
 if [ -z "$REGION" ]; then
-    REGION="europe-west1"
+    REGION=${GCP_LOCATION:-europe-west1}
 fi
 
 # Get DB Password from tfvars (simple grep, assuming standard format)

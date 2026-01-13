@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Info } from 'lucide-react';
-import componentArch from '../assets/architecture_diagram.png';
+import dataAgentArch from '../assets/data_agent_diagram.png';
 import alloydbDeepDive from '../assets/alloydb_ai_nl_architecture.png';
 
 const ArchitectureModal = ({ isOpen, onClose }) => {
@@ -10,9 +10,9 @@ const ArchitectureModal = ({ isOpen, onClose }) => {
 
     const slides = [
         {
-            title: "Component Architecture",
-            image: componentArch,
-            description: "High-level overview of the application components."
+            title: "Data Agent Architecture",
+            image: dataAgentArch,
+            description: "High-level overview of the Data Agent architecture."
         },
         {
             title: "AlloyDB NL Deep Dive",

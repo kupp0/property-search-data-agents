@@ -94,7 +94,7 @@ def main():
     print("🔍 Querying AlloyDB for listings without images...")
     cursor.execute("""
         SELECT id, description 
-        FROM "search".property_listings 
+        FROM property_listings 
         WHERE image_gcs_uri IS NULL
         ORDER BY id ASC
     """)
@@ -111,7 +111,7 @@ def main():
             # 2. Update Database
             try:
                 cursor.execute("""
-                    UPDATE "search".property_listings
+                    UPDATE property_listings
                     SET image_gcs_uri = %s,
                         image_embedding = %s
                     WHERE id = %s

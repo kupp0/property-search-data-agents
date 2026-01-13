@@ -77,9 +77,14 @@ const ChatInterface = ({ onClose, onResultsFound }) => {
             const botMessage = { role: 'model', text: responseText, properties };
             setMessages(prev => [...prev, botMessage]);
 
-            // Notify parent component about found properties
-            if (properties.length > 0 && onResultsFound) {
-                onResultsFound(properties, userMessage.text);
+            // Notify parent component about found properties AND system details
+            if (onResultsFound) {
+                // We pass properties (if any), the user message (or better, the USED prompt), and tool details
+                onResultsFound(
+                    properties,
+                    data.used_prompt || userMessage.text, // Use the actual prompt sent to tool if available
+                    data.tool_details // Pass the raw tool output (SQL, explanation, etc.)
+                );
             }
         } catch (error) {
             console.error("Chat error:", error);

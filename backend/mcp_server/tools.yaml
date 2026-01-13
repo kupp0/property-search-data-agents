@@ -1,17 +1,39 @@
 sources:
-  alloydb-search:
-    kind: "alloydb-postgres"
-    project: "${PROJECT_ID}"
-    region: "europe-west1"
-    cluster: "search-cluster"
-    instance: "search-primary"
-    database: "postgres"
-    user: "postgres"
-    password: "${DB_PASSWORD}"
-    ipType: "PRIVATE"
+  # alloydb-local:
+  #   kind: postgres
+  #   host: "127.0.0.1"
+  #   port: 5432
+  #   database: "postgres"
+  #   user: "postgres"
+  #   password: "${DB_PASSWORD}"
+  gda-api-source:
+    kind: cloud-gemini-data-analytics
+    projectId: "${PROJECT_ID}"
+
 tools:
-  search-properties:
-    kind: alloydb-ai-nl
-    source: alloydb-search
-    description: "Search for properties using natural language. You can ask for specific features, price ranges, locations, or vibes (e.g., 'modern apartment in Zurich under 5k'). ALWAYS include the 'image_gcs_uri' column in your SQL query. Ensure the generated SQL strictly filters for the user's requirements."
-    nlConfig: "property_search_config"
+  # search-properties:
+  #   kind: alloydb-ai-nl
+  #   source: alloydb-local
+  #   description: "Search for properties using natural language. You can ask for specific features, price ranges, locations, or vibes (e.g., 'modern apartment in Zurich under 5k'). ALWAYS include the 'image_gcs_uri' column in your SQL query. Ensure the generated SQL strictly filters for the user's requirements."
+  #   nlConfig: "property_search_config"
+  cloud_gda_query_tool_alloydb:
+    kind: cloud-gemini-data-analytics-query
+    source: gda-api-source
+    description: Use this tool to send natural language queries to the Gemini Data Analytics API and receive SQL, natural language answers, and explanations.
+    location: "${GCP_LOCATION}"
+    context:
+      datasourceReferences:
+        alloydb:
+          databaseReference:
+            projectId: "${PROJECT_ID}"
+            region: "${GCP_LOCATION}"
+            clusterId: "search-cluster"
+            instanceId: "search-primary"
+            databaseId: "search"
+          agentContextReference:
+            contextSetId: "${AGENT_CONTEXT_SET_ID}"
+    generationOptions:
+      generateQueryResult: true
+      generateNaturalLanguageAnswer: true
+      generateExplanation: true
+      generateDisambiguationQuestion: true

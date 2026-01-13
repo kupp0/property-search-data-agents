@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Resolve project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_ROOT"
+echo "📂 Project Root: $PROJECT_ROOT"
+
 # Load environment variables
 if [ -f "backend/.env" ]; then
     echo "📄 Loading configuration from backend/.env..."
@@ -22,7 +28,7 @@ source backend/agent/.venv/bin/activate
 
 # Set environment variables for ADK
 export GOOGLE_CLOUD_PROJECT=$PROJECT_ID
-export GOOGLE_CLOUD_REGION="us-central1"
+export GOOGLE_CLOUD_REGION="global"
 export TOOLBOX_URL="http://127.0.0.1:5000"
 
 # Export variables for google.genai auto-configuration

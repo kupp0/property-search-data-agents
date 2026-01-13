@@ -1,5 +1,5 @@
 -- INSERT 100 RECORDS
-INSERT INTO "search".property_listings (title, description, price, bedrooms, city) VALUES
+INSERT INTO property_listings (title, description, price, bedrooms, city) VALUES
 
 -- ZURICH
 ('Sunny Apartment in Zurich-Oerlikon', 'Bright 3.5 room apartment located near the Hallenstadion. Excellent public transport connections to the airport and city center. diverse neighborhood with many shops.', 2800.00, 2, 'Zurich'),

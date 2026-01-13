@@ -3,8 +3,7 @@ FROM us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest
 WORKDIR /app
 
 # Copy the tools configuration
-# We rename tools_local.yaml to tools.yaml for the container
-COPY tools_local.yaml /secrets/tools.yaml
+COPY tools.yaml /secrets/tools.yaml
 
 # Expose the port
 EXPOSE 8080

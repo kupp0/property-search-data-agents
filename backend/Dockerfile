@@ -9,9 +9,6 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Install system dependencies
-# libpq-dev is often needed for psycopg2, even if using binary, sometimes it helps to have it.
-# But for binary it should be self-contained. 
-# We might need curl for healthchecks or other utils.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \

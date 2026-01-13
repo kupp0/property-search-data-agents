@@ -24,12 +24,15 @@ PRE-REQUISITES:
 -- 1. SCHEMA INITIALIZATION
 -- ===================================================================================
 
--- Create a clean slate for the demo
-DROP SCHEMA IF EXISTS "search" CASCADE;
-CREATE SCHEMA "search";
+-- NOTE: Ensure you have created a database named 'search' before running this script.
+-- CREATE DATABASE search;
 
--- Set the path so we don't have to type "search." constantly
-SET search_path TO "search", public;
+-- We use the default 'public' schema in the 'search' database.
+-- DROP SCHEMA IF EXISTS "search" CASCADE; -- REMOVED
+-- CREATE SCHEMA "search"; -- REMOVED
+
+-- Set the path to public (default)
+SET search_path TO public;
 
 
 -- 2. EXTENSION MANAGEMENT
@@ -83,9 +86,9 @@ SELECT google_ml.embedding(
 -- 3. TABLE CREATION
 -- ===================================================================================
 
-DROP TABLE IF EXISTS "search".property_listings CASCADE;
+DROP TABLE IF EXISTS property_listings CASCADE;
 
-CREATE TABLE "search".property_listings (
+CREATE TABLE property_listings (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     description TEXT,
@@ -130,14 +133,16 @@ CREATE TABLE "search".property_listings (
 */
 
 -- Verify data exists
-SELECT count(*) as property_count FROM "search".property_listings;
+SELECT count(*) as property_count FROM property_listings;
 
 
 -- 5. INDEX CREATION (ScaNN)
 -- ===================================================================================
 -- Index 1: Text Description Index
 -- Uses Cosine Distance for semantic similarity.
-CREATE INDEX idx_scann_property_desc ON "search".property_listings
+-- Index 1: Text Description Index
+-- Uses Cosine Distance for semantic similarity.
+CREATE INDEX idx_scann_property_desc ON property_listings
 USING scann (description_embedding)
 WITH (
     -- 'auto' mode requires ~10k rows. For this demo, we force MANUAL mode.
@@ -148,7 +153,7 @@ WITH (
 
 -- Index 2: Visual Search Index
 -- Indexes the Multi-modal embedding column.
-CREATE INDEX idx_scann_image_search ON "search".property_listings
+CREATE INDEX idx_scann_image_search ON property_listings
 USING scann (image_embedding)
 WITH (
     mode = 'MANUAL',
@@ -163,14 +168,14 @@ WITH (
 -- Test A: Simple Semantic Search
 -- Finds "Student" vibes even without the word "Student" (looking for "Quiet", "Study").
 SELECT title, description, price, city
-FROM "search".property_listings
+FROM property_listings
 ORDER BY description_embedding <=> embedding('gemini-embedding-001', 'a quiet place to study near by University')::vector
 LIMIT 3;
 
 -- Test B: Hybrid Search (Semantic + Filters)
 -- Finds modern apartments, specifically in Zurich, specifically under 15k.
 SELECT id, title, price, city
-FROM "search".property_listings
+FROM property_listings
 WHERE price < 15000.00
   AND city = 'Zurich'
 ORDER BY description_embedding <=> embedding('gemini-embedding-001', 'a modern apartment for a professional working in the city')::vector
@@ -184,6 +189,6 @@ SELECT
     city,
     -- Show the actual distance score (0 is perfect match, 1 is no match)
     description_embedding <=> embedding('gemini-embedding-001', 'I want to live near the water')::vector AS cosine_distance
-FROM "search".property_listings
+FROM property_listings
 ORDER BY cosine_distance ASC
 LIMIT 3;

@@ -1,35 +1,26 @@
-# backend/main.py
 import os
-import re
-import base64
-import psycopg2
-import vertexai
-import google.auth
-from vertexai.language_models import TextEmbeddingModel
-from vertexai.vision_models import MultiModalEmbeddingModel
-from google.cloud import discoveryengine_v1beta as discoveryengine
+import json
+import requests
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+import google.auth
 from google.cloud import storage
-
-# ... (imports remain same)
-
-# Explicitly find and load the .env file from the backend directory
-# This makes the app robust, regardless of where it's started from.
-backend_dir = os.path.dirname(os.path.abspath(__file__))
-dotenv_path = os.path.join(backend_dir, '.env')
-load_dotenv(dotenv_path=dotenv_path)
 
 # ==============================================================================
 # CONFIGURATION & INITIALIZATION
 # ==============================================================================
 
+# Load environment variables from .env file
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+dotenv_path = os.path.join(backend_dir, '.env')
+load_dotenv(dotenv_path=dotenv_path)
+
 app = FastAPI(title="AlloyDB Property Search Demo")
 
-# Configure CORS to allow the local React frontend to communicate with this backend
+# Configure CORS to allow the frontend to communicate with this backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -39,45 +30,22 @@ app.add_middleware(
 )
 
 # Initialize Google Cloud Clients
-# Initialize variables to None first to handle failures gracefully
-mm_model = None
-gemini_text_model = None
-search_client = None
 storage_client = None
+PROJECT_ID = os.getenv("GCP_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
+AGENT_CONTEXT_SET_ID = os.getenv("AGENT_CONTEXT_SET_ID")
 
 try:
-    PROJECT_ID = os.getenv("GCP_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
-    LOCATION = os.getenv("GCP_LOCATION")
-
-    # ... (checks remain same)
-
-    # --- EXPLICIT CREDENTIALS HANDLING ---
+    # Initialize credentials with Cloud Platform scope
     credentials, _ = google.auth.default(
         scopes=['https://www.googleapis.com/auth/cloud-platform']
     )
-
-    # 1. Initialize Vertex AI SDK
-    vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials)
     
-    # 2. Load Models
-    print("Initializing models...")
-    mm_model = MultiModalEmbeddingModel.from_pretrained("multimodalembedding") # image embeddings
-    gemini_text_model = TextEmbeddingModel.from_pretrained("gemini-embedding-001") # text embeddings
-    print("Models initialized successfully.")
-    
-    # 3. Initialize Vertex AI Search Client
-    # The SearchServiceClient defaults to the global endpoint if no client_options are provided.
-    search_client = discoveryengine.SearchServiceClient()
-
-    # 4. Initialize Storage Client
+    # Initialize Storage Client for image serving
     storage_client = storage.Client(project=PROJECT_ID, credentials=credentials)
+    print("Google Cloud Storage client initialized successfully.")
     
 except Exception as e:
-    print(f"Warning: Google Cloud initialization failed. AI features may not work.\nError: {e}")
-    # The variables remain None if initialization failed
-
-
-# ... (Data Models remain same)
+    print(f"Warning: Google Cloud initialization failed. Image serving may not work.\nError: {e}")
 
 # ==============================================================================
 # DATA MODELS
@@ -85,36 +53,73 @@ except Exception as e:
 
 class SearchRequest(BaseModel):
     query: str
-    mode: str = "nl2sql"  # Options: 'nl2sql', 'semantic', 'vertex_search'
-    weight: float = 0.6
-
-# ... (Data Models remain same)
 
 # ==============================================================================
-# DATABASE HELPERS
+# HELPER FUNCTIONS
 # ==============================================================================
 
-def get_db_connection():
+def query_gda(prompt: str) -> dict:
     """
-    Establishes a connection to the AlloyDB instance via the local Auth Proxy.
+    Queries the Gemini Data Agent (GDA) API to get property listings and natural language answers.
     
-    CRITICAL: This connection relies on the 'auth-proxy' sidecar container running alongside this app.
-    The proxy listens on '127.0.0.1:5432' and forwards traffic securely to AlloyDB.
-    
-    NOTE: For the proxy to work with the '--public-ip' flag (as configured in service.yaml),
-    your AlloyDB instance MUST have a PUBLIC IP address assigned.
+    This function sends the user's prompt to the GDA API, which translates it into a SQL query,
+    executes it against the AlloyDB database, and returns the results along with a natural language summary.
     """
+    if not AGENT_CONTEXT_SET_ID:
+        raise HTTPException(500, "AGENT_CONTEXT_SET_ID is not configured.")
+    
+    # GDA API Endpoint
+    gda_location = os.getenv("GCP_LOCATION", "europe-west1")
+    url = f"https://geminidataanalytics.googleapis.com/v1beta/projects/{PROJECT_ID}/locations/{gda_location}:queryData"
+    
+    # Obtain credentials for the API request
+    scopes = ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.email']
+    creds, _ = google.auth.default(scopes=scopes)
+    if not creds.valid:
+        creds.refresh(google.auth.transport.requests.Request())
+    
+    headers = {
+        "Authorization": f"Bearer {creds.token}",
+        "Content-Type": "application/json"
+    }
+    
+    # Construct the GDA API payload
+    payload = {
+        "parent": f"projects/{PROJECT_ID}/locations/{gda_location}",
+        "prompt": prompt,
+        "context": {
+            "datasourceReferences": {
+                "alloydb": {
+                    "databaseReference": {
+                        "project_id": PROJECT_ID,
+                        "region": os.getenv("ALLOYDB_REGION", gda_location),
+                        "cluster_id": os.getenv("ALLOYDB_CLUSTER_ID", "search-cluster"),
+                        "instance_id": os.getenv("ALLOYDB_INSTANCE_ID", "search-primary"),
+                        "database_id": os.getenv("ALLOYDB_DATABASE_ID", "search")
+                    },
+                    "agentContextReference": {
+                        "context_set_id": AGENT_CONTEXT_SET_ID
+                    }
+                }
+            }
+        },
+        "generation_options": {
+            "generate_query_result": True,
+            "generate_natural_language_answer": True,
+            "generate_explanation": True
+        }
+    }
+    
     try:
-        return psycopg2.connect(
-            dbname=os.getenv("DB_NAME", "postgres"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD"),
-            host="127.0.0.1", 
-            port="5432"
-        )
+        print(f"Sending request to GDA API: {url}")
+        resp = requests.post(url, headers=headers, data=json.dumps(payload))
+        resp.raise_for_status()
+        return resp.json()
     except Exception as e:
-        print(f"DB Connection Error: {e}")
-        raise HTTPException(status_code=500, detail=f"Database Connection Failed: {e}")
+        print(f"GDA API Request Failed: {e}")
+        if hasattr(e, 'response') and e.response:
+             print(f"GDA Error Response: {e.response.text}")
+        raise HTTPException(500, f"Failed to query Gemini Data Agent: {e}")
 
 # ==============================================================================
 # API ENDPOINTS
@@ -123,43 +128,47 @@ def get_db_connection():
 @app.get("/api/image")
 async def get_image(gcs_uri: str):
     """
-    Proxies images from GCS to the frontend.
-    Required because the GCS bucket is private and we want to serve images securely
-    without making the entire bucket public.
+    Serves images from Google Cloud Storage (GCS).
+    
+    This endpoint acts as a secure proxy, allowing the frontend to display images
+    from a private GCS bucket without exposing the bucket publicly.
+    It attempts to generate a signed URL for direct access (efficient) or streams
+    the file content if signing fails.
     """
     if not storage_client:
-        raise HTTPException(500, "Storage client not initialized")
+        raise HTTPException(500, "Storage client is not initialized.")
 
     try:
-        # Parse GCS URI
+        # Parse the GCS URI to extract bucket and blob names
         if gcs_uri.startswith("gs://"):
             path = gcs_uri[5:]
-            bucket_name, blob_name = path.split("/", 1)
         elif gcs_uri.startswith("https://storage.googleapis.com/"):
             path = gcs_uri[31:]
-            bucket_name, blob_name = path.split("/", 1)
         else:
-            raise HTTPException(400, "Invalid GCS URI")
+            raise HTTPException(400, "Invalid GCS URI format.")
+            
+        if "/" not in path:
+             raise HTTPException(400, "Invalid GCS URI: Missing object path.")
 
+        bucket_name, blob_name = path.split("/", 1)
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
         
-        # 1. Try to generate Signed URL (Best for Cloud Run)
+        # Method 1: Generate a Signed URL (Preferred for performance)
         try:
             signed_url = blob.generate_signed_url(
                 version="v4",
-                expiration=3600, # 1 hour
+                expiration=3600, # URL valid for 1 hour
                 method="GET"
             )
-            from fastapi.responses import RedirectResponse
             return RedirectResponse(
                 url=signed_url, 
                 status_code=307,
                 headers={"Cache-Control": "public, max-age=300"}
             )
         except Exception as sign_err:
-            # 2. Fallback to Proxy (Best for Local Dev without Service Account keys)
-            print(f"Signed URL generation failed (falling back to proxy): {sign_err}")
+            # Method 2: Stream content (Fallback)
+            print(f"Signed URL generation failed, falling back to streaming: {sign_err}")
             file_obj = blob.open("rb")
             return StreamingResponse(
                 file_obj, 
@@ -168,198 +177,86 @@ async def get_image(gcs_uri: str):
             )
 
     except Exception as e:
-        print(f"Image Delivery Error: {e}")
-        raise HTTPException(404, "Image not found")
+        print(f"Error serving image: {e}")
+        raise HTTPException(404, "Image not found or inaccessible.")
 
 @app.post("/api/search")
-async def search_properties(request: SearchRequest, raw_request: Request):
+async def search_properties(request: SearchRequest):
     """
-    Main search endpoint supporting multiple modes:
-    1. vertex_search: Uses Vertex AI Search (Agent Builder) - Managed Service.
-    2. visual: Uses Multimodal Embeddings to find images similar to the query text.
-    3. semantic: Uses Text Embeddings (Gemini) to find listings with similar descriptions.
-    4. nl2sql: Uses AlloyDB AI to generate SQL queries from natural language.
+    Handles property search requests using the Gemini Data Agent.
+    
+    Accepts a natural language query, sends it to GDA, and returns:
+    1. A list of property listings.
+    2. The generated SQL query.
+    3. A natural language answer.
+    4. An explanation of the reasoning (if available).
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    results = []
-    display_sql = ""
-
+    print(f"Processing search query: '{request.query}'")
+    
     try:
-        # ---------------------------------------------------------
-        # MODE 4: VERTEX AI SEARCH (Managed Service)
-        # ---------------------------------------------------------
-        if request.mode == "vertex_search":
-            if not search_client:
-                 raise HTTPException(500, "Vertex Search client not initialized.")
-
-            data_store_id = os.getenv("VERTEX_AI_SEARCH_DATA_STORE_ID")
-            if not data_store_id:
-                raise HTTPException(500, "VERTEX_AI_SEARCH_DATA_STORE_ID is missing in .env")
-
-            serving_config = search_client.serving_config_path(
-                project=PROJECT_ID,
-                location="global",
-                data_store=data_store_id,
-                serving_config="default_config",
-            )
-
-            response = search_client.search(
-                discoveryengine.SearchRequest(
-                    serving_config=serving_config,
-                    query=request.query,
-                    page_size=10,
-                )
-            )
-
-            for result in response.results:
-                # Convert MapComposite to standard dict
-                data = dict(result.document.struct_data)
-                # Ensure image field exists for frontend compatibility
-                if "image_gcs_uri" not in data: data["image_gcs_uri"] = None
-                results.append(data)
-
-            display_sql = f"// MANAGED SERVICE CALL\n// Vertex AI Search (Agent Builder)\n// Query: '{request.query}'\n// Strategy: Keyword + Semantic Hybrid (Auto)"
-            
-            # Return early (but process images first!)
-            # Process images for proxy
-            for result in results:
-                if result.get("image_gcs_uri"):
-                    result["image_gcs_uri"] = f"{raw_request.base_url}api/image?gcs_uri={result['image_gcs_uri']}"
-
-            return {"listings": results, "sql": display_sql}
-
-
-        # ---------------------------------------------------------
-        # MODE 2: SEMANTIC SEARCH (Hybrid Text + Image)
-        # ---------------------------------------------------------
-        elif request.mode == "semantic":
-            # Safety check for models
-            if not gemini_text_model or not mm_model:
-                raise HTTPException(500, "Required AI models (Gemini or Multimodal) not initialized")
-
-            print(f"Generating Hybrid embeddings for: '{request.query}' with weight {request.weight}")
-            
-            # 1. Generate Text Embedding (Gemini)
-            text_embeddings = gemini_text_model.get_embeddings([request.query])
-            text_vector = str(text_embeddings[0].values)
-
-            # 2. Generate Image Embedding (Multimodal)
-            # We use the query text to find visually similar images
-            image_embeddings = mm_model.get_embeddings(
-                contextual_text=request.query, 
-                dimension=1408
-            )
-            image_vector = str(image_embeddings.text_embedding)
-
-            # 3. Build SQL with the weighted formula
-            # Formula: (weight * (1 - text_dist)) + ((1-weight) * (1 - image_dist))
-            # We use <=> (cosine distance). Similarity = 1 - Distance.
-            sql = f"""
-            SELECT id, title, description, price, city, bedrooms, image_gcs_uri
-            FROM "search".property_listings 
-            ORDER BY 
-              (
-                ({request.weight} * (1 - ("description_embedding" <=> '{text_vector}'))) + 
-                ((1 - {request.weight}) * (1 - ("image_embedding" <=> '{image_vector}')))
-              ) DESC
-            LIMIT 20;
-            """
-            
-            display_sql = f"""// Hybrid Semantic Search: Text + Image
-// Similarity = 1 - Cosine Distance (<=>)
-// Ranking = Weighted Average of Text & Image Similarity
-SELECT ...
-ORDER BY 
-  (
-    ({request.weight} * (1 - ("description_embedding" <=> '[{text_vector[1:20]}...]'))) + 
-    ({round(1 - request.weight, 1)} * (1 - ("image_embedding" <=> '[{image_vector[1:20]}...]')))
-  ) DESC
-LIMIT 20;"""
-           
-            cursor.execute(sql)
-            
-            if cursor.description:
-                columns = [desc[0] for desc in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-
-        # ---------------------------------------------------------
-        # MODE 3: NL2SQL (Generative SQL via AlloyDB AI)
-        # ---------------------------------------------------------
-        else:
-            print(f"Generating SQL via AlloyDB AI for: '{request.query}'")
-            # Note: This mode still relies on the model defined in your AlloyDB configuration
-            cursor.execute("SELECT alloydb_ai_nl.get_sql('property_search_config', %s) ->> 'sql'", (request.query,))
-            row = cursor.fetchone()
-            gen_sql = row[0] if row else None
-            
-            if not gen_sql: 
-                return {"listings": [], "sql": "Could not generate SQL from query."}
-
-            # SQL cleanup heuristics for demo purposes
-            # SECURITY WARNING: This executes AI-generated SQL directly against the database.
-            # In a production environment, you MUST:
-            # 1. Use a read-only database user with strictly limited permissions.
-            # 2. Implement a validation layer to parse and allow-list SQL structures.
-            # 3. Never expose this endpoint publicly without authentication and rate limiting.
-            gen_sql = gen_sql.strip().rstrip(';')
-            if "FROM" in gen_sql.upper():
-                gen_sql = gen_sql.replace("SELECT ", "SELECT image_gcs_uri, ", 1)
-            
-            final_sql = re.sub(r"LIMIT\s+\d+", "LIMIT 20", gen_sql, flags=re.IGNORECASE)
-            if "LIMIT" not in final_sql.upper(): 
-                final_sql += " LIMIT 20"
-            
-            display_sql = final_sql
-            cursor.execute(final_sql)
-            
-            if cursor.description:
-                columns = [desc[0] for desc in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-            if not results:
-                cursor.execute('SELECT DISTINCT city FROM "search".property_listings ORDER BY city')
-                cities = [row[0] for row in cursor.fetchall()]
-                display_sql = 'SELECT DISTINCT city FROM "search".property_listings ORDER BY city'
-                return {"listings": [], "sql": display_sql, "available_cities": cities}
-
-
-        # --- POST-PROCESSING: PROXY IMAGES ---
-        for result in results:
-            if result.get("image_gcs_uri"):
-                result["image_gcs_uri"] = f"{raw_request.base_url}api/image?gcs_uri={result['image_gcs_uri']}"
-
-        return {"listings": results, "sql": display_sql}
-
-    except psycopg2.Error as e:
-        print(f"Database Error: {e.pgcode} - {e.pgerror}")
-        cities = []
-        fallback_conn = None
-        try:
-            # Use a fresh connection to avoid transaction state issues
-            fallback_conn = get_db_connection()
-            fallback_cursor = fallback_conn.cursor()
-            fallback_cursor.execute('SELECT DISTINCT city FROM "search".property_listings ORDER BY city')
-            cities = [row[0] for row in fallback_cursor.fetchall()]
-            fallback_cursor.close()
-            fallback_conn.close()
-        except Exception as city_err:
-            print(f"Failed to fetch cities during error handling: {city_err}")
-            if fallback_conn:
-                try: fallback_conn.close()
-                except: pass
-            
-        return {"listings": [], "sql": f"Database Error: {e.pgerror}", "available_cities": cities}
-    except Exception as e:
-        print(f"Backend Error: {e}")
-        return {"listings": [], "sql": f"Backend Error: {str(e)}"}
-        # Provide a more specific error if a model wasn't initialized
-        if request.mode == "semantic" and (not gemini_text_model or not mm_model):
-            return {"listings": [], "sql": "Backend Error: A required AI model (Gemini or Multimodal) failed to initialize. Check backend logs."}
-        return {"listings": [], "sql": f"An unexpected error occurred: {str(e)}"}
+        # Query the Gemini Data Agent
+        gda_resp = query_gda(request.query)
         
-    finally:
-        # Ensure connection is closed even if an error occurs
-        if cursor: cursor.close()
-        if conn: conn.close()
+        # Extract components from the response
+        nl_answer = gda_resp.get("naturalLanguageAnswer", "")
+        query_result = gda_resp.get("queryResult", {})
+        rows = query_result.get("rows", [])
+        cols = query_result.get("columns", [])
+        
+        # Process rows into a list of dictionaries
+        results = []
+        if rows and cols:
+            col_names = [c["name"] for c in cols]
+            for row in rows:
+                values = row.get("values", [])
+                
+                # Flatten the response structure:
+                # GDA returns values as {"value": "actual_value"}, we extract "actual_value".
+                # We also filter out large embedding fields to reduce payload size.
+                item = {
+                    k: (v["value"] if isinstance(v, dict) and "value" in v else v)
+                    for k, v in zip(col_names, values)
+                    if k not in ("description_embedding", "image_embedding")
+                }
+                
+                # Update image URIs to use the local proxy endpoint
+                # This prevents mixed content warnings and handles auth
+                if item.get("image_gcs_uri"):
+                    item["image_gcs_uri"] = f"/api/image?gcs_uri={item['image_gcs_uri']}"
+                
+                results.append(item)
+        
+        # Construct the System Output for the UI
+        generated_sql = gda_resp.get("generatedQuery") or gda_resp.get("queryResult", {}).get("query", "SQL not returned by GDA")
+        explanation = gda_resp.get('intentExplanation', '')
+        total_row_count = gda_resp.get("queryResult", {}).get("totalRowCount", "0")
+        
+        # Create a preview of the raw query results (first 3 rows)
+        query_result_preview = {
+            "columns": cols,
+            "rows": rows[:3] if rows else []
+        }
+        
+        display_sql = f"// GEMINI DATA AGENT CALL\n// Generated SQL: {generated_sql}\n// Answer: {nl_answer}"
+        if explanation:
+            display_sql += f"\n// Explanation: {explanation}"
+        
+        return {
+            "listings": results, 
+            "sql": display_sql, 
+            "nl_answer": nl_answer,
+            "details": {
+                "generated_query": generated_sql,
+                "intent_explanation": explanation,
+                "total_row_count": total_row_count,
+                "query_result_preview": query_result_preview
+            }
+        }
+
+    except Exception as e:
+        print(f"Search failed: {e}")
+        return {
+            "listings": [], 
+            "sql": f"An error occurred during search: {str(e)}",
+            "nl_answer": "I encountered an error while processing your request."
+        }
