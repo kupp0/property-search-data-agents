@@ -16,7 +16,7 @@ This application demonstrates a **Natural Language to SQL (NL2SQL)** pipeline po
 *   **Natural Language Search**: Ask questions like "Show me 2-bedroom apartments in Zurich under 3000 CHF".
 *   **Generative AI Answers**: Get natural language summaries alongside data results.
 *   **Secure Image Serving**: Images are served securely from a private GCS bucket via the backend.
-*   **Modern UI**: Responsive design with dark mode support.
+*   **Modern UI**: Responsive design with dark mode support. 
 
 ## Prerequisites
 
@@ -24,6 +24,7 @@ This application demonstrates a **Natural Language to SQL (NL2SQL)** pipeline po
 *   AlloyDB Cluster and Instance.
 *   Gemini Data Agent configured with AlloyDB as a data source.
 *   Google Cloud Storage bucket for images.
+*   If Data Agent feature is still in gated preview, whitelist your project first. Details: https://docs.cloud.google.com/alloydb/docs/ai/data-agent-overview
 
 ## Local Development
 
