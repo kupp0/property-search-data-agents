@@ -21,21 +21,28 @@ fi
 export PROJECT_ID=$(gcloud config get-value project)
 export GCP_LOCATION=${GCP_LOCATION:-europe-west1}
 export REGION=$GCP_LOCATION
+
+# Default AlloyDB Config (can be overridden by .env)
+export ALLOYDB_REGION=${ALLOYDB_REGION:-$REGION}
+export ALLOYDB_CLUSTER_ID=${ALLOYDB_CLUSTER_ID:-search-cluster}
+export ALLOYDB_INSTANCE_ID=${ALLOYDB_INSTANCE_ID:-search-primary}
+export ALLOYDB_DATABASE_ID=${ALLOYDB_DATABASE_ID:-search}
+export DB_PASS=${DB_PASS:-Welcome01}
 REPO_NAME="search-app-repo"
 
 # Service Names
-BACKEND_SERVICE="data-agent-search-backend"
+export BACKEND_SERVICE="data-agent-search-backend"
 FRONTEND_SERVICE="data-agent-search-frontend"
-AGENT_SERVICE="data-agent-service"
+export AGENT_SERVICE="data-agent-service"
 TOOLBOX_SERVICE="data-agent-toolbox"
 
 # Images
-BACKEND_IMAGE="europe-west1-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${BACKEND_SERVICE}"
+export BACKEND_IMAGE="europe-west1-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${BACKEND_SERVICE}"
 FRONTEND_IMAGE="europe-west1-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${FRONTEND_SERVICE}"
-AGENT_IMAGE="europe-west1-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${AGENT_SERVICE}"
+export AGENT_IMAGE="europe-west1-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${AGENT_SERVICE}"
 TOOLBOX_IMAGE="europe-west1-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${TOOLBOX_SERVICE}"
 
-TAG=$(date +%Y%m%d-%H%M%S)
+export TAG=$(date +%Y%m%d-%H%M%S)
 
 echo "🚀 Starting Deployment to Cloud Run..."
 echo "Project: ${PROJECT_ID}"
@@ -137,30 +144,31 @@ gcloud run deploy ${TOOLBOX_SERVICE} \
     --service-account search-backend-sa@${PROJECT_ID}.iam.gserviceaccount.com
 
 TOOLBOX_URL=$(gcloud run services describe ${TOOLBOX_SERVICE} --region ${REGION} --format 'value(status.url)')
+export TOOLBOX_URL
 echo "✅ MCP Server deployed at: ${TOOLBOX_URL}"
 
 # --- DEPLOY AGENT ---
-echo "🚀 Deploying Agent..."
-gcloud run deploy ${AGENT_SERVICE} \
-    --image ${AGENT_IMAGE}:${TAG} \
-    --region ${REGION} \
-    --platform managed \
-    --allow-unauthenticated \
-    --set-env-vars GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},TOOLBOX_URL=${TOOLBOX_URL} \
-    --service-account search-backend-sa@${PROJECT_ID}.iam.gserviceaccount.com
+echo "🚀 Deploying Agent with Sidecar..."
+# Generate resolved service YAML
+envsubst < backend/agent/service.yaml > backend/agent/service_resolved.yaml
+
+gcloud run services replace backend/agent/service_resolved.yaml --region ${REGION}
+
+# Cleanup
+rm backend/agent/service_resolved.yaml
 
 AGENT_URL=$(gcloud run services describe ${AGENT_SERVICE} --region ${REGION} --format 'value(status.url)')
 echo "✅ Agent deployed at: ${AGENT_URL}"
 
 # --- DEPLOY BACKEND ---
-echo "🚀 Deploying Backend..."
-gcloud run deploy ${BACKEND_SERVICE} \
-    --image ${BACKEND_IMAGE}:${TAG} \
-    --region ${REGION} \
-    --platform managed \
-    --allow-unauthenticated \
-    --set-env-vars GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${REGION},ALLOYDB_REGION=${REGION},ALLOYDB_CLUSTER_ID=search-cluster,ALLOYDB_INSTANCE_ID=search-primary,ALLOYDB_DATABASE_ID=search,AGENT_CONTEXT_SET_ID=${AGENT_CONTEXT_SET_ID} \
-    --service-account search-backend-sa@${PROJECT_ID}.iam.gserviceaccount.com
+echo "🚀 Deploying Backend with Sidecar..."
+# Generate resolved service YAML
+envsubst < backend/service.yaml > backend/service_resolved.yaml
+
+gcloud run services replace backend/service_resolved.yaml --region ${REGION}
+
+# Cleanup
+rm backend/service_resolved.yaml
 
 BACKEND_URL=$(gcloud run services describe ${BACKEND_SERVICE} --region ${REGION} --format 'value(status.url)')
 echo "✅ Backend deployed at: ${BACKEND_URL}"

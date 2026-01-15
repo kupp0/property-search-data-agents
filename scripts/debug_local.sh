@@ -39,20 +39,41 @@ cd ../..
 # Cleanup function
 cleanup() {
     echo "🧹 Stopping containers..."
-    docker stop search-backend search-frontend agent-service toolbox-service || true
+    docker stop search-backend search-frontend agent-service toolbox-service alloydb-auth-proxy || true
 }
 trap cleanup EXIT
 
 # --- PRE-CLEANUP ---
 echo "🧹 Cleaning up existing containers..."
-docker rm -f search-backend search-frontend agent-service toolbox-service 2>/dev/null || true
+docker rm -f search-backend search-frontend agent-service toolbox-service alloydb-auth-proxy 2>/dev/null || true
 
 # --- BUILD LOCALLY ---
 echo "🔨 Building images locally..."
 docker build -t local-search-backend backend/
 docker build -t local-search-frontend frontend/
 
-# 2. Run Backend Container
+# Check if port 5432 is in use (for Auth Proxy)
+if lsof -i :5432 -t >/dev/null; then
+    echo "   ⚠️  Port 5432 is in use. Killing existing process..."
+    kill -9 $(lsof -i :5432 -t)
+fi
+
+# 2. Run Auth Proxy Container
+echo "📦 Running Auth Proxy Container..."
+docker run -d --rm \
+    --name alloydb-auth-proxy \
+    --network host \
+    -v /tmp/adc.json:/tmp/keys.json:ro \
+    -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys.json \
+    gcr.io/alloydb-connectors/alloydb-auth-proxy:latest \
+    "$INSTANCE_CONNECTION_NAME" \
+    --address 0.0.0.0 \
+    --port 5432 \
+    --public-ip
+
+echo "   Auth Proxy running on localhost:5432"
+
+# 3. Run Backend Container
 echo "📦 Running Backend Container..."
 docker run -d --rm \
     --name search-backend \
@@ -61,13 +82,17 @@ docker run -d --rm \
     -e GCP_PROJECT_ID=$PROJECT_ID \
     -e GCP_LOCATION=$REGION \
     -e AGENT_CONTEXT_SET_ID=$AGENT_CONTEXT_SET_ID \
+    -e DB_HOST=127.0.0.1 \
+    -e DB_NAME=${DB_NAME:-search} \
+    -e DB_USER=${DB_USER:-postgres} \
+    -e DB_PASS=${DB_PASSWORD:-${DB_PASS}} \
     -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys.json \
     -v $HOME/.config/gcloud/application_default_credentials.json:/tmp/keys.json:ro \
     local-search-backend
 
 echo "   Backend running on localhost:8080"
 
-# 3. Run Toolbox Container (MCP Server)
+# 4. Run Toolbox Container (MCP Server)
 echo "📦 Running Toolbox Container..."
 
 # Prepare credentials with correct permissions for Docker
@@ -93,7 +118,7 @@ docker run -d --rm \
 
 echo "   Toolbox running on localhost:8082"
 
-# 4. Run Agent Container
+# 5. Run Agent Container
 echo "📦 Running Agent Container..."
 # Try to build agent, but warn if it fails (likely due to missing google-adk)
 if docker build -t local-agent-service backend/agent/; then
@@ -115,7 +140,7 @@ else
     echo "⚠️  The 'AI Agent' chat feature will be unavailable."
 fi
 
-# 5. Run Frontend Container
+# 6. Run Frontend Container
 echo "📦 Running Frontend Container..."
 docker run -d --rm \
     --name search-frontend \
