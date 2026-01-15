@@ -35,6 +35,7 @@ temp_*.jpg
 toolbox
 backend/agent/service.resolved.yaml
 backend/mcp_server/service.resolved.yaml
+recovered_source/
 
 # Agent Development Kit
 backend/agent/.adk/

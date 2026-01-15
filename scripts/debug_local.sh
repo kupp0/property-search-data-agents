@@ -58,6 +58,10 @@ if lsof -i :5432 -t >/dev/null; then
     kill -9 $(lsof -i :5432 -t)
 fi
 
+# Prepare credentials with correct permissions for Docker
+cp $HOME/.config/gcloud/application_default_credentials.json /tmp/adc.json
+chmod 644 /tmp/adc.json
+
 # 2. Run Auth Proxy Container
 echo "📦 Running Auth Proxy Container..."
 docker run -d --rm \
@@ -71,7 +75,9 @@ docker run -d --rm \
     --port 5432 \
     --public-ip
 
-echo "   Auth Proxy running on localhost:5432"
+echo "   ⏳ Waiting for Auth Proxy to be ready on port 5432..."
+timeout 30s bash -c 'until echo > /dev/tcp/localhost/5432; do sleep 1; done' || { echo "❌ Auth Proxy failed to start!"; docker logs alloydb-auth-proxy; exit 1; }
+echo "   ✅ Auth Proxy running on localhost:5432"
 
 # 3. Run Backend Container
 echo "📦 Running Backend Container..."

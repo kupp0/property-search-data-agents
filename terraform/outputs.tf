@@ -28,3 +28,20 @@ output "bastion_ssh_command" {
 output "alloydb_sa_email" {
   value = google_project_service_identity.alloydb_sa.email
 }
+
+output "db_host" {
+  value = google_alloydb_instance.primary.ip_address
+}
+
+output "db_user" {
+  value = var.db_user
+}
+
+output "db_pass" {
+  value = var.db_password
+  sensitive = true
+}
+
+output "db_name" {
+  value = var.db_name
+}

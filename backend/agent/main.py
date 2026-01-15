@@ -7,6 +7,9 @@ from google.adk import Runner
 from google.adk.sessions import InMemorySessionService
 
 from fastapi.middleware.cors import CORSMiddleware
+import asyncpg
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 
 app = FastAPI()
 
@@ -17,6 +20,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# AlloyDB Configuration
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_USER = os.environ.get("DB_USER", "postgres")
+DB_PASS = os.environ.get("DB_PASS", "Welcome01")
+DB_NAME = os.environ.get("DB_NAME", "postgres")
+
+# Global DB Engine
+engine = None
+
+async def get_engine():
+    global engine
+    if engine:
+        return engine
+
+    if not DB_HOST:
+        raise ValueError("DB_HOST environment variable is not set.")
+
+    print(f"Connecting to AlloyDB via Auth Proxy at {DB_HOST}...")
+    db_url = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
+    engine = create_async_engine(db_url)
+    return engine
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global engine
+    if engine:
+        await engine.dispose()
+        print("Database engine disposed.")
 
 # Initialize Runner
 # We need a session service. InMemory is fine for this demo/stateless usage.
@@ -103,9 +135,20 @@ async def chat(request: ChatRequest):
                                      tool_details = response_payload['result']
                                 else:
                                      tool_details = response_payload
+                                
+                                # If tool_details is a string (e.g. nested JSON), try to parse it
+                                if isinstance(tool_details, str):
+                                    try:
+                                        tool_details = json.loads(tool_details)
+                                    except Exception:
+                                        pass # Keep as string if parsing fails
+
                             # If it's a string, try to parse
                             elif isinstance(response_payload, str):
-                                tool_details = json.loads(response_payload)
+                                try:
+                                    tool_details = json.loads(response_payload)
+                                except Exception:
+                                    tool_details = response_payload # Keep as string
                                 
                             print(f"DEBUG: Captured tool details keys: {tool_details.keys() if isinstance(tool_details, dict) else 'Not a dict'}")
                         except Exception as e:
@@ -120,6 +163,38 @@ async def chat(request: ChatRequest):
             elif hasattr(event, 'text') and event.text:
                 response_text += event.text
             
+        # Log to Database
+        try:
+            db_engine = await get_engine()
+            # Only save if a tool was used (used_prompt is set)
+            if used_prompt:
+                async with db_engine.begin() as conn:
+                    # Determine template usage (basic logic for now, can be improved if tool details has it)
+                    query_template_used = False
+                    query_template_id = None
+                    query_explanation = None
+                    
+                    # If tool_details has explanation, use it
+                    if tool_details and isinstance(tool_details, dict):
+                        query_explanation = tool_details.get('intentExplanation') or tool_details.get('explanation')
+                    
+                    await conn.execute(
+                        text("""
+                        INSERT INTO user_prompt_history 
+                        (user_prompt, query_template_used, query_template_id, query_explanation)
+                        VALUES (:prompt, :used, :id, :explanation)
+                        """),
+                        {
+                            "prompt": request.message, 
+                            "used": query_template_used, 
+                            "id": query_template_id,
+                            "explanation": query_explanation
+                        }
+                    )
+            print("User prompt history saved (Agent).")
+        except Exception as db_err:
+            print(f"Failed to save user prompt history (Agent): {db_err}")
+
         print(f"DEBUG: Final response text: {response_text}")
         return ChatResponse(
             response=response_text or "Agent executed (no text response)",

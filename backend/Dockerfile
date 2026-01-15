@@ -8,8 +8,9 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies
+# Install build tools and system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     gcc \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*

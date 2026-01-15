@@ -5,3 +5,6 @@ pydantic
 google-cloud-storage
 requests
 google-auth
+sqlalchemy
+asyncpg
+greenlet

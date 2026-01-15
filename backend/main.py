@@ -8,6 +8,9 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import google.auth
 from google.cloud import storage
+import asyncpg
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 
 # ==============================================================================
 # CONFIGURATION & INITIALIZATION
@@ -47,12 +50,44 @@ try:
 except Exception as e:
     print(f"Warning: Google Cloud initialization failed. Image serving may not work.\nError: {e}")
 
+# AlloyDB Configuration
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_USER = os.environ.get("DB_USER", "postgres")
+DB_PASS = os.environ.get("DB_PASS", "Welcome01")
+DB_NAME = os.environ.get("DB_NAME", "postgres")
+
+# Global DB Engine
+engine = None
+
+async def get_engine():
+    global engine
+    if engine:
+        return engine
+
+    if not DB_HOST:
+        raise ValueError("DB_HOST environment variable is not set.")
+
+    print(f"Connecting to AlloyDB via Auth Proxy at {DB_HOST}...")
+    db_url = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
+    engine = create_async_engine(db_url)
+    return engine
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global engine
+    if engine:
+        await engine.dispose()
+        print("Database engine disposed.")
+
 # ==============================================================================
 # DATA MODELS
 # ==============================================================================
 
 class SearchRequest(BaseModel):
     query: str
+
+class HistoryRequest(BaseModel):
+    where_clause: str = ""
 
 # ==============================================================================
 # HELPER FUNCTIONS
@@ -241,6 +276,31 @@ async def search_properties(request: SearchRequest):
         if explanation:
             display_sql += f"\n// Explanation: {explanation}"
         
+        # Log to Database
+        try:
+            db_engine = await get_engine()
+            async with db_engine.begin() as conn:
+                # Determine template usage (basic logic for now)
+                query_template_used = False
+                query_template_id = None
+                
+                await conn.execute(
+                    text("""
+                    INSERT INTO user_prompt_history 
+                    (user_prompt, query_template_used, query_template_id, query_explanation)
+                    VALUES (:prompt, :used, :id, :explanation)
+                    """),
+                    {
+                        "prompt": request.query, 
+                        "used": query_template_used, 
+                        "id": query_template_id,
+                        "explanation": explanation
+                    }
+                )
+            print("User prompt history saved (Search).")
+        except Exception as db_err:
+            print(f"Failed to save user prompt history (Search): {db_err}")
+
         return {
             "listings": results, 
             "sql": display_sql, 
@@ -260,3 +320,33 @@ async def search_properties(request: SearchRequest):
             "sql": f"An error occurred during search: {str(e)}",
             "nl_answer": "I encountered an error while processing your request."
         }
+
+@app.post("/api/history")
+async def get_history(request: HistoryRequest):
+    """
+    Retrieves user prompt history using direct DB connection.
+    """
+    try:
+        db_engine = await get_engine()
+        async with db_engine.connect() as conn:
+            query_str = """
+                SELECT user_prompt, query_template_used, query_template_id, query_explanation 
+                FROM "public"."user_prompt_history"
+            """
+            
+            params = {}
+            if request.where_clause:
+                # SECURITY WARNING: This is vulnerable to SQL injection.
+                # Intended for internal/demo use as requested ("customize the where condition").
+                query_str += f" WHERE {request.where_clause}"
+                
+            query_str += " LIMIT 1000"
+            
+            result = await conn.execute(text(query_str), params)
+            rows = [dict(row) for row in result.mappings()]
+            
+        return {"rows": rows}
+        
+    except Exception as e:
+        print(f"History fetch failed: {e}")
+        raise HTTPException(500, f"Failed to fetch history: {e}")

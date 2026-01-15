@@ -28,6 +28,8 @@ export ALLOYDB_CLUSTER_ID=${ALLOYDB_CLUSTER_ID:-search-cluster}
 export ALLOYDB_INSTANCE_ID=${ALLOYDB_INSTANCE_ID:-search-primary}
 export ALLOYDB_DATABASE_ID=${ALLOYDB_DATABASE_ID:-search}
 export DB_PASS=${DB_PASS:-Welcome01}
+# For Cloud Run with Sidecar, DB_HOST is always localhost
+export DB_HOST=127.0.0.1
 REPO_NAME="search-app-repo"
 
 # Service Names
