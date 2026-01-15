@@ -15,7 +15,7 @@ spec:
       serviceAccountName: ${SERVICE_ACCOUNT}
       containers:
       - name: agent
-        image: ${AGENT_IMAGE}
+        image: ${AGENT_IMAGE}:${TAG}
         ports:
         - containerPort: 8080
         env:

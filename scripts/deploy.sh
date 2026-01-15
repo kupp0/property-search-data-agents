@@ -38,6 +38,9 @@ FRONTEND_SERVICE="data-agent-search-frontend"
 export AGENT_SERVICE="data-agent-service"
 TOOLBOX_SERVICE="data-agent-toolbox"
 
+# Service Account
+export SERVICE_ACCOUNT="search-backend-sa@${PROJECT_ID}.iam.gserviceaccount.com"
+
 # Images
 export BACKEND_IMAGE="europe-west1-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${BACKEND_SERVICE}"
 FRONTEND_IMAGE="europe-west1-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${FRONTEND_SERVICE}"
@@ -85,7 +88,7 @@ EOF
     echo "📦 [Toolbox] Building Image..."
     gcloud builds submit ./backend/mcp_server \
         --config=backend/mcp_server/cloudbuild_deploy.yaml \
-        --substitutions=_IMAGE_NAME=${TOOLBOX_IMAGE},_TAG=${TAG} > /dev/null 2>&1
+        --substitutions=_IMAGE_NAME=${TOOLBOX_IMAGE},_TAG=${TAG}
 
     # Cleanup temporary files
     rm backend/mcp_server/tools_resolved.yaml backend/mcp_server/Dockerfile.deploy backend/mcp_server/cloudbuild_deploy.yaml

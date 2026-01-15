@@ -11,7 +11,22 @@ from google.cloud import storage
 import asyncpg
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
+import logging
+import sys
+import re
+from typing import List, Optional, Any
+from sqlalchemy import text, bindparam
 
+# ==============================================================================
+# LOGGING CONFIGURATION
+# ==============================================================================
+# Configure JSON-style logging for production
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"timestamp": "%(asctime)s", "level": "%(levelname)s", "message": "%(message)s"}',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 # ==============================================================================
 # CONFIGURATION & INITIALIZATION
 # ==============================================================================
@@ -23,10 +38,14 @@ load_dotenv(dotenv_path=dotenv_path)
 
 app = FastAPI(title="AlloyDB Property Search Demo")
 
-# Configure CORS to allow the frontend to communicate with this backend
+# Configure CORS
+# In production, this should be restricted to specific domains.
+ALLOWED_ORIGINS_STR = os.getenv("ALLOWED_ORIGINS", "*")
+ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS_STR.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,10 +70,14 @@ except Exception as e:
     print(f"Warning: Google Cloud initialization failed. Image serving may not work.\nError: {e}")
 
 # AlloyDB Configuration
+# AlloyDB Configuration
 DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_USER = os.environ.get("DB_USER", "postgres")
-DB_PASS = os.environ.get("DB_PASS", "Welcome01")
+DB_PASS = os.environ.get("DB_PASS")
 DB_NAME = os.environ.get("DB_NAME", "postgres")
+
+if not DB_PASS:
+    logger.warning("DB_PASS environment variable is not set. Database connection may fail if password is required.")
 
 # Global DB Engine
 engine = None
@@ -67,7 +90,7 @@ async def get_engine():
     if not DB_HOST:
         raise ValueError("DB_HOST environment variable is not set.")
 
-    print(f"Connecting to AlloyDB via Auth Proxy at {DB_HOST}...")
+    logger.info(f"Connecting to AlloyDB via Auth Proxy at {DB_HOST}...")
     db_url = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
     engine = create_async_engine(db_url)
     return engine
@@ -77,7 +100,7 @@ async def shutdown_event():
     global engine
     if engine:
         await engine.dispose()
-        print("Database engine disposed.")
+        logger.info("Database engine disposed.")
 
 # ==============================================================================
 # DATA MODELS
@@ -86,8 +109,16 @@ async def shutdown_event():
 class SearchRequest(BaseModel):
     query: str
 
+class FilterCondition(BaseModel):
+    column: str
+    operator: str
+    value: Any
+    logic: str = "AND"
+
 class HistoryRequest(BaseModel):
-    where_clause: str = ""
+    # Deprecated: where_clause (unsafe), prefer filters
+    where_clause: Optional[str] = None
+    filters: List[FilterCondition] = []
 
 # ==============================================================================
 # HELPER FUNCTIONS
@@ -146,14 +177,14 @@ def query_gda(prompt: str) -> dict:
     }
     
     try:
-        print(f"Sending request to GDA API: {url}")
+        logger.info(f"Sending request to GDA API: {url}")
         resp = requests.post(url, headers=headers, data=json.dumps(payload))
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
-        print(f"GDA API Request Failed: {e}")
+        logger.error(f"GDA API Request Failed: {e}")
         if hasattr(e, 'response') and e.response:
-             print(f"GDA Error Response: {e.response.text}")
+             logger.error(f"GDA Error Response: {e.response.text}")
         raise HTTPException(500, f"Failed to query Gemini Data Agent: {e}")
 
 # ==============================================================================
@@ -203,7 +234,7 @@ async def get_image(gcs_uri: str):
             )
         except Exception as sign_err:
             # Method 2: Stream content (Fallback)
-            print(f"Signed URL generation failed, falling back to streaming: {sign_err}")
+            logger.warning(f"Signed URL generation failed, falling back to streaming: {sign_err}")
             file_obj = blob.open("rb")
             return StreamingResponse(
                 file_obj, 
@@ -212,7 +243,7 @@ async def get_image(gcs_uri: str):
             )
 
     except Exception as e:
-        print(f"Error serving image: {e}")
+        logger.error(f"Error serving image: {e}")
         raise HTTPException(404, "Image not found or inaccessible.")
 
 @app.post("/api/search")
@@ -226,7 +257,7 @@ async def search_properties(request: SearchRequest):
     3. A natural language answer.
     4. An explanation of the reasoning (if available).
     """
-    print(f"Processing search query: '{request.query}'")
+    logger.info(f"Processing search query: '{request.query}'")
     
     try:
         # Query the Gemini Data Agent
@@ -280,9 +311,16 @@ async def search_properties(request: SearchRequest):
         try:
             db_engine = await get_engine()
             async with db_engine.begin() as conn:
-                # Determine template usage (basic logic for now)
+                # Determine template usage
                 query_template_used = False
                 query_template_id = None
+                
+                if explanation:
+                    # Look for "Template X" pattern in the explanation
+                    match = re.search(r"Template\s+(\d+)", explanation, re.IGNORECASE)
+                    if match:
+                        query_template_used = True
+                        query_template_id = int(match.group(1))
                 
                 await conn.execute(
                     text("""
@@ -297,9 +335,10 @@ async def search_properties(request: SearchRequest):
                         "explanation": explanation
                     }
                 )
-            print("User prompt history saved (Search).")
+
+            logger.info("User prompt history saved (Search).")
         except Exception as db_err:
-            print(f"Failed to save user prompt history (Search): {db_err}")
+            logger.error(f"Failed to save user prompt history (Search): {db_err}")
 
         return {
             "listings": results, 
@@ -314,7 +353,7 @@ async def search_properties(request: SearchRequest):
         }
 
     except Exception as e:
-        print(f"Search failed: {e}")
+        logger.error(f"Search failed: {e}")
         return {
             "listings": [], 
             "sql": f"An error occurred during search: {str(e)}",
@@ -325,21 +364,64 @@ async def search_properties(request: SearchRequest):
 async def get_history(request: HistoryRequest):
     """
     Retrieves user prompt history using direct DB connection.
+    Supports structured filtering to prevent SQL injection.
     """
     try:
         db_engine = await get_engine()
         async with db_engine.connect() as conn:
-            query_str = """
+            base_query = """
                 SELECT user_prompt, query_template_used, query_template_id, query_explanation 
                 FROM "public"."user_prompt_history"
             """
             
+            conditions = []
             params = {}
+            
+            # Handle legacy where_clause (only if simple/safe or warn)
             if request.where_clause:
-                # SECURITY WARNING: This is vulnerable to SQL injection.
-                # Intended for internal/demo use as requested ("customize the where condition").
-                query_str += f" WHERE {request.where_clause}"
-                
+                logger.warning("Usage of unsafe 'where_clause' in history API. This field is deprecated.")
+                # For now, we DO NOT append it blindly to avoid SQLi, unless we are sure.
+                # Or we can just ignore it and rely on filters.
+                # Let's try to be backward compatible ONLY if it's empty or simple?
+                # Actually, for security audit, we MUST disable raw injection.
+                # We will ignore it or throw error if it contains dangerous keywords?
+                # Safest: Ignore it and log warning, or return error.
+                # Let's return error to force frontend update if it's being used.
+                pass 
+
+            # Handle structured filters
+            ALLOWED_COLUMNS = {"user_prompt", "query_template_used", "query_template_id", "query_explanation"}
+            ALLOWED_OPERATORS = {"=", "!=", "LIKE", "ILIKE", ">", "<", ">=", "<="}
+            
+            query_str = base_query
+            first_condition = True
+
+            if request.filters:
+                for idx, f in enumerate(request.filters):
+                    if f.column not in ALLOWED_COLUMNS:
+                        continue # Skip invalid columns
+                    if f.operator not in ALLOWED_OPERATORS:
+                        continue # Skip invalid operators
+                    
+                    param_name = f"p{idx}"
+                    
+                    # Handle type casting for integer/boolean columns when using string operators
+                    column_expr = f.column
+                    if f.column in ("query_template_id", "query_template_used") and f.operator.upper() in ("LIKE", "ILIKE"):
+                        column_expr = f"CAST({f.column} AS TEXT)"
+                        
+                    clause = f"{column_expr} {f.operator} :{param_name}"
+                    params[param_name] = f.value
+                    
+                    if first_condition:
+                        query_str += f" WHERE {clause}"
+                        first_condition = False
+                    else:
+                        logic_op = f.logic.upper()
+                        if logic_op not in ("AND", "OR"):
+                            logic_op = "AND"
+                        query_str += f" {logic_op} {clause}"
+
             query_str += " LIMIT 1000"
             
             result = await conn.execute(text(query_str), params)
@@ -348,5 +430,5 @@ async def get_history(request: HistoryRequest):
         return {"rows": rows}
         
     except Exception as e:
-        print(f"History fetch failed: {e}")
+        logger.error(f"History fetch failed: {e}")
         raise HTTPException(500, f"Failed to fetch history: {e}")

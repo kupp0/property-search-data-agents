@@ -21,7 +21,7 @@ spec:
       containers:
       # --- MAIN APPLICATION CONTAINER ---
       - name: backend
-        image: ${BACKEND_IMAGE}
+        image: ${BACKEND_IMAGE}:${TAG}
         ports:
         - containerPort: 8080
         env:

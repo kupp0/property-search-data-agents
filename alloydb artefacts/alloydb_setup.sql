@@ -85,6 +85,16 @@ SELECT google_ml.embedding(
 
 -- 3. TABLE CREATION
 -- ===================================================================================
+CREATE TABLE public.user_prompt_history (
+    id SERIAL PRIMARY KEY,
+    "timestamp" timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    user_prompt text,
+    prompt_embedded public.vector(3072) GENERATED ALWAYS AS (public.embedding('gemini-embedding-001'::text, user_prompt)) STORED,
+    query_template_used boolean,
+    query_template_id integer,
+    query_explanation text
+);
+
 
 DROP TABLE IF EXISTS property_listings CASCADE;
 

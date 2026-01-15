@@ -77,11 +77,14 @@ const UserHistoryWidget = ({ isOpen, onClose }) => {
         setLoading(true);
         setError(null);
         try {
-            const clause = typeof clauseOverride === 'string' ? clauseOverride : generateWhereClause();
+            // Send structured filters instead of raw SQL
+            // Filter out empty values
+            const activeFilters = filters.filter(f => f.value && f.value.trim() !== '');
+
             const response = await fetch('/api/history', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ where_clause: clause }),
+                body: JSON.stringify({ filters: activeFilters }),
             });
             if (!response.ok) throw new Error('Failed to fetch history');
             const data = await response.json();
