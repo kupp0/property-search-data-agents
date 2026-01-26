@@ -3,7 +3,7 @@ kind: Service
 # This YAML defines a Cloud Run Service.
 # Cloud Run is a fully managed serverless platform that automatically scales your stateless containers.
 metadata:
-  name: data-agent-search-backend
+  name: ${BACKEND_SERVICE}
   annotations:
     # 'BETA' launch stage allows access to some preview features if needed.
     run.googleapis.com/launch-stage: BETA
@@ -29,9 +29,6 @@ spec:
           value: "${PROJECT_ID}"
         - name: GCP_LOCATION
           value: "${REGION}"
-        - name: VERTEX_AI_SEARCH_DATA_STORE_ID
-          value: "${VERTEX_AI_SEARCH_DATA_STORE_ID}"
-
         - name: AGENT_CONTEXT_SET_ID
           value: "${AGENT_CONTEXT_SET_ID}"
         - name: DB_HOST
@@ -40,8 +37,8 @@ spec:
           value: "${DB_NAME}"
         - name: DB_USER
           value: "${DB_USER}"
-        - name: DB_PASS
-          value: "${DB_PASS}"
+        - name: DB_PASSWORD
+          value: "${DB_PASSWORD}"
       - name: alloydb-auth-proxy
         image: gcr.io/alloydb-connectors/alloydb-auth-proxy:latest
         args:

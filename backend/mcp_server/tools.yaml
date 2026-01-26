@@ -27,9 +27,9 @@ tools:
           databaseReference:
             projectId: "${PROJECT_ID}"
             region: "${GCP_LOCATION}"
-            clusterId: "search-cluster"
-            instanceId: "search-primary"
-            databaseId: "search"
+            clusterId: "${ALLOYDB_CLUSTER_ID}"
+            instanceId: "${ALLOYDB_INSTANCE_ID}"
+            databaseId: "${ALLOYDB_DATABASE_ID}"
           agentContextReference:
             contextSetId: "${AGENT_CONTEXT_SET_ID}"
     generationOptions:

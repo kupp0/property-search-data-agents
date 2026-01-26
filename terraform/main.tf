@@ -36,7 +36,6 @@ resource "google_project_service" "services" {
     "artifactregistry.googleapis.com",
     "cloudbuild.googleapis.com",
     "aiplatform.googleapis.com",
-    "discoveryengine.googleapis.com",
     "servicenetworking.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
@@ -44,7 +43,8 @@ resource "google_project_service" "services" {
     "cloudaicompanion.googleapis.com",
     "monitoring.googleapis.com",
     "cloudtrace.googleapis.com",
-    "secretmanager.googleapis.com"
+    "secretmanager.googleapis.com",
+    "geminidataanalytics.googleapis.com"
   ])
 
   project = google_project.project.project_id

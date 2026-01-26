@@ -3,3 +3,8 @@ billing_account_id = "000000-000000-000000"
 region             = "europe-west1"
 zone               = "europe-west1-b"
 db_password        = "ChangeMe123!" # Must be complex
+
+# Optional Variables (Defaults shown)
+# alloydb_cluster_id = "search-cluster"
+# alloydb_instance_id = "search-primary"
+# subnet_cidr        = "10.0.0.0/24"

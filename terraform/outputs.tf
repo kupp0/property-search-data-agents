@@ -45,3 +45,8 @@ output "db_pass" {
 output "db_name" {
   value = var.db_name
 }
+
+output "instance_connection_name" {
+  description = "The connection name of the AlloyDB instance to be used in env vars"
+  value       = "projects/${var.project_id}/locations/${var.region}/clusters/${var.alloydb_cluster_id}/instances/${var.alloydb_instance_id}"
+}

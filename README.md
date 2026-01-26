@@ -47,6 +47,71 @@ This application demonstrates a **Natural Language to SQL (NL2SQL)** pipeline po
     ./scripts/debug_local.sh
     ```
 
+## Data Bootstrapping & AlloyDB Setup
+
+Follow these steps to initialize the database, generate sample data, and create indexes.
+
+### 1. Start AlloyDB Auth Proxy
+
+To connect to your AlloyDB instance from your local machine, start the Auth Proxy:
+
+```bash
+cd "alloydb artefacts"
+./run_proxy.sh
+```
+*Keep this terminal open.*
+
+### 2. Initialize Database & Schema
+
+Connect to your AlloyDB instance (e.g., using `psql` or a database client at `localhost:5432`) and run the following SQL scripts in order:
+
+1.  **`alloydb_setup.sql`**: Creates extensions, tables, and triggers.
+2.  **`100 _sample records.sql`**: Inserts sample property listings.
+
+```bash
+# Example using psql (adjust username/database as needed)
+export PGPASSWORD=your_password
+psql -h localhost -U postgres -d postgres -f "alloydb artefacts/alloydb_setup.sql"
+psql -h localhost -U postgres -d postgres -f "alloydb artefacts/100 _sample records.sql"
+```
+
+### 3. Generate Images & Embeddings
+
+Run the Python script to generate AI images and embeddings for the listings.
+
+**Prerequisites:**
+```bash
+cd "alloydb artefacts"
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Run:**
+```bash
+python bootstrap_images.py
+```
+
+**What it does:**
+1.  Connects to AlloyDB via localhost:5432.
+2.  Finds listings with `image_gcs_uri IS NULL`.
+3.  Generates an image using Vertex AI Imagen.
+4.  Uploads the image to the GCS bucket.
+5.  Generates a multimodal embedding.
+6.  Updates the `property_listings` table.
+
+### 4. Create Indexes
+
+After data is populated and enriched, create the ScaNN indexes for fast search:
+
+```bash
+psql -h localhost -U postgres -d postgres -f "alloydb artefacts/create_indexes.sql"
+```
+
+### 5. Data Agent Configuration
+
+The `data_agent_context_file.json` file contains example SQL templates and fragments (e.g., definitions for "cheap", "luxury", "studio") that can be used to configure the Gemini Data Agent's reasoning capabilities. You can upload this context to your Data Agent instance.
+
 ## Deployment
 
 To deploy to Google Cloud Run:

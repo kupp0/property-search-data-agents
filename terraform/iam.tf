@@ -20,9 +20,13 @@ resource "google_project_iam_member" "sa_roles" {
     "roles/artifactregistry.repoAdmin",
     "roles/serviceusage.serviceUsageConsumer",
     "roles/aiplatform.user",
-    "roles/discoveryengine.editor",
+    "roles/aiplatform.user",
     "roles/storage.objectAdmin",
-    "roles/secretmanager.secretAccessor"
+    "roles/secretmanager.secretAccessor",
+    "roles/cloudaicompanion.user",
+    "roles/geminidataanalytics.dataAgentUser",
+    "roles/geminidataanalytics.queryDataUser",
+    "roles/alloydb.databaseUser"
   ])
 
   project = google_project.project.project_id
@@ -72,7 +76,8 @@ resource "google_project_iam_member" "default_compute_sa_roles" {
   for_each = toset([
     "roles/storage.objectViewer",
     "roles/artifactregistry.repoAdmin",
-    "roles/logging.logWriter"
+    "roles/logging.logWriter",
+    "roles/geminidataanalytics.dataAgentUser"
   ])
 
   project = google_project.project.project_id

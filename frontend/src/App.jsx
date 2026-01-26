@@ -61,7 +61,8 @@ const PropertyCard = ({ listing }) => {
                 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-3">
                     <span>{listing.bedrooms} Beds</span>
                     <span>•</span>
-                    <span>{listing.city}</span>
+                    <span>{listing.city}, {listing.cantone}</span>
+                    <span className="hidden sm:inline">• {listing.country}</span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
                     {listing.description}
@@ -260,13 +261,8 @@ function App() {
 
                     {/* HEADER */}
                     <div className="flex flex-col items-center mb-8 text-center relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-indigo-500/10 rounded-xl ring-1 ring-indigo-500/20">
-                                <Sparkles className="w-6 h-6 text-indigo-500" />
-                            </div>
-                            <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold tracking-wider uppercase">
-                                Beta
-                            </span>
+                        <div className="absolute top-8 left-8 p-2 bg-indigo-500/10 rounded-xl ring-1 ring-indigo-500/20">
+                            <Sparkles className="w-6 h-6 text-indigo-500" />
                         </div>
 
                         <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">

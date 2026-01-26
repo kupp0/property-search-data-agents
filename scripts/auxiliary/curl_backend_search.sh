@@ -8,5 +8,5 @@ echo "🔍 Testing Backend Search Endpoint at $BASE_URL..."
 curl -X POST "${BASE_URL}/api/search" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "Find a luxury 2 bedroom apartments in Zurich"
+    "query": "show me Lovely Mountain Cabins under 15k"
   }' | json_pp

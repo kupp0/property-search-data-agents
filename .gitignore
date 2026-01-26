@@ -39,3 +39,4 @@ recovered_source/
 
 # Agent Development Kit
 backend/agent/.adk/
+iam_policy.json

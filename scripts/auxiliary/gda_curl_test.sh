@@ -2,28 +2,38 @@
 
 # Configuration
 # <<< REPLACE with your actual Project ID >>>
-PROJECT_ID="my-search-demo-alloydb"
+PROJECT_ID="${PROJECT_ID:-ai-powered-search-alloydb-1542}"
 
-# Extract details from the MCP Toolkit Definition
+#Impersonated Service account user
+IMPERSONATE_SA="search-backend-sa@ai-powered-search-alloydb-1542.iam.gserviceaccount.com"
+
+# API Details
 GDA_LOCATION="europe-west1"
 API_ENDPOINT="https://geminidataanalytics.googleapis.com/v1beta/projects/${PROJECT_ID}/locations/${GDA_LOCATION}:queryData"
 
-# AlloyDB connection details from YAML
+# AlloyDB connection details 
 DB_PROJECT_ID="${PROJECT_ID}"
 DB_REGION="europe-west1"
 DB_CLUSTER_ID="search-cluster"
 DB_INSTANCE_ID="search-primary"
 DB_DATABASE_ID="search"
-AGENT_CONTEXT_SET_ID="projects/${PROJECT_ID}/locations/europe-west4/contextSets/property-search-guru-w-fragmen"
+AGENT_CONTEXT_SET_ID=projects/ai-powered-search-alloydb-1542/locations/us-east1/contextSets/property-agent
 
-# Generation Options from YAML
+# Generation Options
 GEN_QUERY_RESULT="true"
 GEN_NL_ANSWER="true"
 GEN_EXPLANATION="true"
 GEN_DISAMBIGUATION="true"
 
-# Get OAuth access token from gcloud
-TOKEN=$(gcloud auth print-access-token)
+# Get OAuth access token from gcloud if not already set
+# Get OAuth access token
+if [ -n "$IMPERSONATE_SA" ]; then
+  echo "🕵️ Impersonating Service Account: $IMPERSONATE_SA"
+  TOKEN=$(gcloud auth print-access-token --impersonate-service-account "$IMPERSONATE_SA")
+else
+# TOKEN="${TOKEN:-$(gcloud auth print-access-token)}"
+echo "No impersonation service account specified. Using default gcloud auth token."
+fi
 
 # Check if token retrieval was successful
 if [ -z "$TOKEN" ]; then
@@ -31,7 +41,7 @@ if [ -z "$TOKEN" ]; then
   exit 1
 fi
 
-# JSON Payload constructed from YAML values (Corrected datasourceReferences)
+# JSON Payload
 read -r -d '' JSON_PAYLOAD << EOF
 {
   "parent": "projects/${PROJECT_ID}/locations/${GDA_LOCATION}",

@@ -31,7 +31,7 @@ storage_client = storage.Client()
 
 def get_db_connection():
     return psycopg2.connect(
-        dbname=os.getenv("DB_NAME", "postgres"),
+        dbname=os.getenv("DB_NAME", "search"),
         user=os.getenv("DB_USER", "postgres"),
         password=os.getenv("DB_PASSWORD"),
         host="127.0.0.1", # Uses your running Auth Proxy

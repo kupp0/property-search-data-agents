@@ -39,6 +39,16 @@ ALLOYDB_REGION=${ALLOYDB_REGION:-$GCP_LOCATION}
 read -p "AlloyDB Database ID (default: search): " ALLOYDB_DATABASE_ID
 ALLOYDB_DATABASE_ID=${ALLOYDB_DATABASE_ID:-search}
 
+echo "--- Database Credentials ---"
+read -p "Database User (default: postgres): " DB_USER
+DB_USER=${DB_USER:-postgres}
+
+read -s -p "Database Password: " DB_PASSWORD
+echo ""
+
+read -p "Database Name (default: search): " DB_NAME
+DB_NAME=${DB_NAME:-search}
+
 read -p "Agent Context Set ID: " AGENT_CONTEXT_SET_ID
 
 echo "📝 Writing to $ENV_FILE..."
@@ -50,6 +60,9 @@ ALLOYDB_CLUSTER_ID=$ALLOYDB_CLUSTER_ID
 ALLOYDB_INSTANCE_ID=$ALLOYDB_INSTANCE_ID
 ALLOYDB_REGION=$ALLOYDB_REGION
 ALLOYDB_DATABASE_ID=$ALLOYDB_DATABASE_ID
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASSWORD
+DB_NAME=$DB_NAME
 AGENT_CONTEXT_SET_ID=$AGENT_CONTEXT_SET_ID
 EOF
 

@@ -31,10 +31,11 @@ gcloud services enable \
     artifactregistry.googleapis.com \
     cloudbuild.googleapis.com \
     aiplatform.googleapis.com \
-    discoveryengine.googleapis.com \
     servicenetworking.googleapis.com \
-    servicenetworking.googleapis.com \
-    cloudresourcemanager.googleapis.com
+    cloudresourcemanager.googleapis.com \
+    secretmanager.googleapis.com \
+    geminidataanalytics.googleapis.com \
+    cloudaicompanion.googleapis.com
 ```
 
 ## 3. Storage (GCS)
@@ -84,6 +85,7 @@ The following flags **MUST** be set on the primary instance for the AI features 
 -   `password.enforce_complexity=on`
 -   `google_db_advisor.enable_auto_advisor=on`
 -   `google_db_advisor.auto_advisor_schedule='EVERY 24 HOURS'`
+-   `parameterized_views.enabled=on`
 
 ### Creation Commands
 
@@ -102,7 +104,7 @@ gcloud alloydb instances create hr-primary \
     --cpu-count=2 \
     --ssl-mode=ENCRYPTED_ONLY \
     --assign-ip \
-    --database-flags="alloydb_ai_nl.enabled=on,google_ml_integration.enable_ai_query_engine=on,scann.enable_zero_knob_index_creation=on,password.enforce_complexity=on,google_db_advisor.enable_auto_advisor=on,google_db_advisor.auto_advisor_schedule='EVERY 24 HOURS'"
+    --database-flags="alloydb_ai_nl.enabled=on,google_ml_integration.enable_ai_query_engine=on,scann.enable_zero_knob_index_creation=on,password.enforce_complexity=on,google_db_advisor.enable_auto_advisor=on,google_db_advisor.auto_advisor_schedule='EVERY 24 HOURS',parameterized_views.enabled=on"
 ```
 *Note: `--assign-ip` enables the Public IP.*
 
@@ -125,11 +127,15 @@ It requires the following roles to function correctly:
 | Role | Purpose |
 | :--- | :--- |
 | `roles/alloydb.client` | Connect to AlloyDB via Auth Proxy |
+| `roles/alloydb.databaseUser` | Login to AlloyDB database |
 | `roles/logging.logWriter` | Write logs to Cloud Logging |
 | `roles/artifactregistry.repoAdmin` | Manage container images |
 | `roles/serviceusage.serviceUsageConsumer` | Consume Google Cloud APIs |
 | `roles/aiplatform.user` | Access Vertex AI (Embeddings, LLMs) |
-| `roles/discoveryengine.editor` | Access Vertex AI Search (Data Stores) |
+| `roles/secretmanager.secretAccessor` | Access secrets (tools configuration) |
+| `roles/cloudaicompanion.user` | Access AI Companion features |
+| `roles/geminidataanalytics.dataAgentUser` | Access Gemini Data Analytics Agent |
+| `roles/geminidataanalytics.queryDataUser` | Execute queries via Data Analytics |
 
 **Command to grant roles to the Service Account:**
 ```bash
@@ -138,12 +144,15 @@ PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNum
 SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/alloydb.client"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/alloydb.databaseUser"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/logging.logWriter"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/artifactregistry.repoAdmin"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/serviceusage.serviceUsageConsumer"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/aiplatform.user"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/discoveryengine.editor"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/discoveryengine.editor"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/secretmanager.secretAccessor"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/cloudaicompanion.user"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/geminidataanalytics.dataAgentUser"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SERVICE_ACCOUNT" --role="roles/geminidataanalytics.queryDataUser"
 ```
 
 ### AlloyDB Service Agent Permissions
@@ -158,56 +167,11 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     --role="roles/aiplatform.user"
 ```
 
-## 7. Vertex AI Search (Data Store Creation)
 
-Go to Vertex AI Search, add a new App and link it to your AlloyDB table (Preview feature). After import make sure to set in the schema settings that all collumns are searchable and retrievable.
-
-### Create Data Store with AlloyDB Source
-This command creates a new Data Store and links it to your AlloyDB table.
-
-Below the http curl command to create it via API instead of the UI.
-
-**Prerequisites:**
--   The AlloyDB instance must be reachable.
--   The user/service account running this must have `roles/discoveryengine.admin` or similar.
-
-```bash
-# Configuration
-PROJECT_ID=$(gcloud config get-value project)
-REGION="europe-west1" # AlloyDB Region
-DATA_STORE_ID="property-listings-ds"
-DISPLAY_NAME="Property Listings"
-CLUSTER_ID="hr-dev"
-DATABASE_ID="postgres"
-TABLE_ID="search.property_listings"
-
-# Get Access Token
-ACCESS_TOKEN=$(gcloud auth print-access-token)
-
-# Create Data Store via API
-curl -X POST \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  "https://discoveryengine.googleapis.com/v1alpha/projects/$PROJECT_ID/locations/global/collections/default_collection/dataStores?dataStoreId=$DATA_STORE_ID" \
-  -d '{
-    "displayName": "'"$DISPLAY_NAME"'",
-    "industryVertical": "GENERIC",
-    "solutionTypes": ["SOLUTION_TYPE_SEARCH"],
-    "contentConfig": "CONTENT_REQUIRED",
-    "alloyDbSource": {
-      "projectId": "'"$PROJECT_ID"'",
-      "locationId": "'"$REGION"'",
-      "clusterId": "'"$CLUSTER_ID"'",
-      "databaseId": "'"$DATABASE_ID"'",
-      "tableId": "'"$TABLE_ID"'"
-    }
-  }'
-```
-*Note: This uses the `v1alpha` API. Ensure the `discoveryengine.googleapis.com` API is enabled.*
 
 
 ## 8. Deployment
 Once infrastructure is ready:
-0. Run ./debug_local.sh to test the application locally.
 1.  Run `./setup_env.sh` to configure your environment variables.
-2.  Run `./deploy.sh` to build and deploy the application.
+2.  Run `./debug_local.sh` to test the application locally.
+3.  Run `./deploy.sh` to build and deploy the application.

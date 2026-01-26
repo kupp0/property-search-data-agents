@@ -2,22 +2,31 @@ import os
 import requests
 import google.auth
 import google.auth.transport.requests
+import google.oauth2.credentials
 import json
 
-# Configuration matching gda_curl_test.sh
-PROJECT_ID = "my-search-demo-alloydb"
-AGENT_CONTEXT_SET_ID = f"projects/{PROJECT_ID}/locations/europe-west4/contextSets/property-search-guru-w-fragmen"
-GDA_LOCATION = "europe-west1"
+# Configuration
+PROJECT_ID = os.getenv("PROJECT_ID", "ai-powered-search-alloydb-1542")
+# Note: Context Set location might differ from GDA location, but usually they should align or be accessible.
+# Keeping europe-west4 for context set as per original script, but making it configurable.
+CONTEXT_LOCATION = os.getenv("CONTEXT_LOCATION", "us-east1")
+AGENT_CONTEXT_SET_ID = f"projects/{PROJECT_ID}/locations/{CONTEXT_LOCATION}/contextSets/property-agent"
+GDA_LOCATION = os.getenv("GDA_LOCATION", "europe-west1")
 
 def query_gda(prompt):
     url = f"https://geminidataanalytics.googleapis.com/v1beta/projects/{PROJECT_ID}/locations/{GDA_LOCATION}:queryData"
     
     # Get credentials
-    creds, project = google.auth.default(scopes=['https://www.googleapis.com/auth/cloud-platform'])
-    if not creds.valid:
-        creds.refresh(google.auth.transport.requests.Request())
+    access_token = os.getenv("ACCESS_TOKEN")
+    if access_token:
+        print("Using provided ACCESS_TOKEN")
+        creds = google.oauth2.credentials.Credentials(token=access_token)
+    else:
+        creds, project = google.auth.default(scopes=['https://www.googleapis.com/auth/cloud-platform'])
+        if not creds.valid:
+            creds.refresh(google.auth.transport.requests.Request())
     
-    print(f"Creds: {creds.service_account_email if hasattr(creds, 'service_account_email') else 'User Creds'}")
+    print(f"Creds: {creds.service_account_email if hasattr(creds, 'service_account_email') else 'User/Token Creds'}")
 
     headers = {
         "Authorization": f"Bearer {creds.token}",
@@ -62,4 +71,4 @@ def query_gda(prompt):
         print(f"Error: {e}")
 
 if __name__ == "__main__":
-    query_gda("What are the top 3 most expensive properties listed in Zurich?")
+    query_gda("show me Lovely Mountain Cabins under 15k")

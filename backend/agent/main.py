@@ -24,8 +24,8 @@ app.add_middleware(
 # AlloyDB Configuration
 DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_USER = os.environ.get("DB_USER", "postgres")
-DB_PASS = os.environ.get("DB_PASS", "Welcome01")
-DB_NAME = os.environ.get("DB_NAME", "postgres")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "Welcome01")
+DB_NAME = os.environ.get("DB_NAME", "search")
 
 # Global DB Engine
 engine = None
@@ -39,7 +39,7 @@ async def get_engine():
         raise ValueError("DB_HOST environment variable is not set.")
 
     print(f"Connecting to AlloyDB via Auth Proxy at {DB_HOST}...")
-    db_url = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
+    db_url = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
     engine = create_async_engine(db_url)
     return engine
 

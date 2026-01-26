@@ -27,13 +27,6 @@ PRE-REQUISITES:
 -- NOTE: Ensure you have created a database named 'search' before running this script.
 -- CREATE DATABASE search;
 
--- We use the default 'public' schema in the 'search' database.
--- DROP SCHEMA IF EXISTS "search" CASCADE; -- REMOVED
--- CREATE SCHEMA "search"; -- REMOVED
-
--- Set the path to public (default)
-SET search_path TO public;
-
 
 -- 2. EXTENSION MANAGEMENT
 -- ===================================================================================
@@ -57,14 +50,19 @@ CREATE EXTENSION IF NOT EXISTS alloydb_ai_nl CASCADE;
 ALTER EXTENSION alloydb_ai_nl UPDATE;
 
 --Register latest embedding model to AlloyDB
--- Example to register a different embedding model:
-CALL google_ml.create_model(
-  model_id => 'my_gemini_embedding_model',
-  model_provider => 'google',
-  model_qualified_name => 'gemini-embedding-001', -- Or the specific one you want
-  model_type => 'text_embedding',
-  model_auth_type => 'alloydb_service_agent_iam'
-);
+-- Register latest embedding model to AlloyDB (Idempotent)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM google_ml.model_info_view WHERE model_id = 'my_gemini_embedding_model') THEN
+        CALL google_ml.create_model(
+          model_id => 'my_gemini_embedding_model',
+          model_provider => 'google',
+          model_qualified_name => 'gemini-embedding-001',
+          model_type => 'text_embedding',
+          model_auth_type => 'alloydb_service_agent_iam'
+        );
+    END IF;
+END $$;
 
 -- Check registered models
 SELECT * FROM google_ml.model_info_view;
@@ -85,6 +83,8 @@ SELECT google_ml.embedding(
 
 -- 3. TABLE CREATION
 -- ===================================================================================
+DROP TABLE IF EXISTS user_prompt_history CASCADE;
+
 CREATE TABLE public.user_prompt_history (
     id SERIAL PRIMARY KEY,
     "timestamp" timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
@@ -106,6 +106,8 @@ CREATE TABLE property_listings (
     bedrooms INT,
     city VARCHAR(100),
     image_gcs_uri TEXT,
+    country VARCHAR(100) DEFAULT 'Switzerland',
+    cantone VARCHAR(100),
     -- COLUMN A: Text Embeddings (Managed by Database)
     -- Automatically generates a 3072-dim vector when you insert text into 'description'.
     description_embedding VECTOR(3072) GENERATED ALWAYS AS (
@@ -123,7 +125,7 @@ CREATE TABLE property_listings (
 -- Image URIs and Image Embeddings are left NULL here (populated in the Python step).
 
 
--- Run the 100_sample_records.sql file to populate the table with sample data.
+-- Run the DML_sample_records.sql file to populate the table with sample data.
 
 
 
@@ -147,29 +149,7 @@ SELECT count(*) as property_count FROM property_listings;
 
 
 -- 5. INDEX CREATION (ScaNN)
--- ===================================================================================
--- Index 1: Text Description Index
--- Uses Cosine Distance for semantic similarity.
--- Index 1: Text Description Index
--- Uses Cosine Distance for semantic similarity.
-CREATE INDEX idx_scann_property_desc ON property_listings
-USING scann (description_embedding)
-WITH (
-    -- 'auto' mode requires ~10k rows. For this demo, we force MANUAL mode.
-    mode = 'MANUAL',
-    num_leaves = 1,     -- 1 partition is optimal for < 1000 rows.
-    quantizer = 'SQ8'   -- Standard quantization for balance of speed/accuracy.
-);
-
--- Index 2: Visual Search Index
--- Indexes the Multi-modal embedding column.
-CREATE INDEX idx_scann_image_search ON property_listings
-USING scann (image_embedding)
-WITH (
-    mode = 'MANUAL',
-    num_leaves = 1,     -- Kept at 1 to ensure stability with small demo dataset.
-    quantizer = 'SQ8'
-);
+-- Moved to create_indexes.sql to allow data loading first.
 
 
 -- 6. VALIDATION QUERIES

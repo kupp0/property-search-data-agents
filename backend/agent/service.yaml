@@ -1,7 +1,7 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: search-agent
+  name: ${AGENT_SERVICE}
   annotations:
     run.googleapis.com/launch-stage: BETA
 spec:
@@ -28,18 +28,34 @@ spec:
         - name: GOOGLE_GENAI_USE_VERTEXAI
           value: "true"
         - name: TOOLBOX_URL
-          value: "${TOOLBOX_URL}"
+          value: "http://localhost:8081"
         - name: DB_HOST
           value: "${DB_HOST}"
         - name: DB_NAME
           value: "${DB_NAME}"
         - name: DB_USER
           value: "${DB_USER}"
-        - name: DB_PASS
-          value: "${DB_PASS}"
+        - name: DB_PASSWORD
+          value: "${DB_PASSWORD}"
       - name: alloydb-auth-proxy
         image: gcr.io/alloydb-connectors/alloydb-auth-proxy:latest
         args:
         - "${INSTANCE_CONNECTION_NAME}"
         - "--address=0.0.0.0"
         - "--port=5432"
+      - name: toolbox
+        image: us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest
+        args:
+        - "--tools-file=/secrets/tools.yaml"
+        - "--address=0.0.0.0"
+        - "--port=8081"
+        volumeMounts:
+        - name: tools-secret
+          mountPath: /secrets
+      volumes:
+      - name: tools-secret
+        secret:
+          secretName: tools
+          items:
+          - key: latest
+            path: tools.yaml
