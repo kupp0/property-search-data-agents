@@ -61,7 +61,7 @@ const PropertyCard = ({ listing }) => {
                 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-3">
                     <span>{listing.bedrooms} Beds</span>
                     <span>•</span>
-                    <span>{listing.city}, {listing.cantone}</span>
+                    <span>{listing.city}, {listing.canton}</span>
                     <span className="hidden sm:inline">• {listing.country}</span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">

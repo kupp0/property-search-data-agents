@@ -107,7 +107,7 @@ CREATE TABLE property_listings (
     city VARCHAR(100),
     image_gcs_uri TEXT,
     country VARCHAR(100) DEFAULT 'Switzerland',
-    cantone VARCHAR(100),
+    canton VARCHAR(100),
     -- COLUMN A: Text Embeddings (Managed by Database)
     -- Automatically generates a 3072-dim vector when you insert text into 'description'.
     description_embedding VECTOR(3072) GENERATED ALWAYS AS (

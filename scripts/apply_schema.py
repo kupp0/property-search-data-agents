@@ -111,7 +111,7 @@ async def main():
         count = await conn.fetchval("SELECT count(*) FROM property_listings")
         print(f"Total records in property_listings: {count}")
         
-        sample = await conn.fetchrow("SELECT city, cantone, country FROM property_listings LIMIT 1")
+        sample = await conn.fetchrow("SELECT city, canton, country FROM property_listings LIMIT 1")
         print(f"Sample record: {sample}")
 
     finally:

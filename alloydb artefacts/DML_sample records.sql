@@ -1,5 +1,5 @@
 -- INSERT RECORDS (Enriched with Country and Canton)
-INSERT INTO property_listings (title, description, price, bedrooms, city, country, cantone) VALUES
+INSERT INTO property_listings (title, description, price, bedrooms, city, country, canton) VALUES
 ('Sunny Apartment in Zurich-Oerlikon', 'Bright 3.5 room apartment located near the Hallenstadion. Excellent public transport connections to the airport and city center. diverse neighborhood with many shops.', 2800.0, 2, 'Zurich', 'Switzerland', 'Zurich'),
 ('Industrial Style Loft in Zurich West', 'Trendy open-space loft in a converted factory. High ceilings, exposed concrete, and a rooftop terrace. Perfect for young creatives or a startup couple.', 3900.0, 1, 'Zurich', 'Switzerland', 'Zurich'),
 ('Exclusive Penthouse on Zurichberg', 'Top-floor residence with breathtaking views of the city and the Alps. Features a private elevator, fireplace, and a wrap-around terrace. Absolute privacy and luxury.', 9500.0, 3, 'Zurich', 'Switzerland', 'Zurich'),
