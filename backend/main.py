@@ -56,6 +56,11 @@ storage_client = None
 PROJECT_ID = os.getenv("GCP_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
 AGENT_CONTEXT_SET_ID = os.getenv("AGENT_CONTEXT_SET_ID")
 
+# Configure allowed GCS bucket for image serving to prevent SSRF
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
+if not GCS_BUCKET_NAME and PROJECT_ID:
+    GCS_BUCKET_NAME = f"property-images-{PROJECT_ID}"
+
 try:
     # Initialize credentials with Cloud Platform scope
     credentials, _ = google.auth.default(
@@ -217,6 +222,12 @@ async def get_image(gcs_uri: str):
              raise HTTPException(400, "Invalid GCS URI: Missing object path.")
 
         bucket_name, blob_name = path.split("/", 1)
+
+        # Security Check: Ensure we are accessing the allowed bucket
+        if GCS_BUCKET_NAME and bucket_name != GCS_BUCKET_NAME:
+            logger.warning(f"Blocked access to unauthorized bucket: {bucket_name}")
+            raise HTTPException(400, "Invalid GCS bucket.")
+
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
         
@@ -242,6 +253,8 @@ async def get_image(gcs_uri: str):
                 headers={"Cache-Control": "public, max-age=86400"}
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error serving image: {e}")
         raise HTTPException(404, "Image not found or inaccessible.")
