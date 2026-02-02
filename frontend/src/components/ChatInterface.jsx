@@ -111,7 +111,7 @@ const ChatInterface = ({ onClose, onResultsFound }) => {
                     </div>
                 </div>
                 {onClose && (
-                    <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400">
+                    <button onClick={onClose} aria-label="Close chat" className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400">
                         <X className="w-5 h-5" />
                     </button>
                 )}
@@ -161,12 +161,14 @@ const ChatInterface = ({ onClose, onResultsFound }) => {
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSend()}
                         placeholder="Ask about properties..."
+                        aria-label="Chat message"
                         className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all dark:text-white placeholder-slate-400"
                         disabled={isLoading}
                     />
                     <button
                         onClick={handleSend}
                         disabled={isLoading || !input.trim()}
+                        aria-label="Send message"
                         className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
                     >
                         <Send className="w-5 h-5" />
