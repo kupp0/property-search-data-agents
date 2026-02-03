@@ -124,6 +124,25 @@ class HistoryRequest(BaseModel):
 # HELPER FUNCTIONS
 # ==============================================================================
 
+# Global variable to cache GDA credentials
+_gda_credentials = None
+
+def get_gda_credentials():
+    """
+    Retrieves and caches Google credentials for GDA access.
+    This optimization prevents repetitive file I/O or metadata server calls.
+    """
+    global _gda_credentials
+    scopes = ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.email']
+
+    if _gda_credentials is None:
+        _gda_credentials, _ = google.auth.default(scopes=scopes)
+
+    if not _gda_credentials.valid:
+        _gda_credentials.refresh(google.auth.transport.requests.Request())
+
+    return _gda_credentials
+
 def query_gda(prompt: str) -> dict:
     """
     Queries the Gemini Data Agent (GDA) API to get property listings and natural language answers.
@@ -139,10 +158,7 @@ def query_gda(prompt: str) -> dict:
     url = f"https://geminidataanalytics.googleapis.com/v1beta/projects/{PROJECT_ID}/locations/{gda_location}:queryData"
     
     # Obtain credentials for the API request
-    scopes = ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.email']
-    creds, _ = google.auth.default(scopes=scopes)
-    if not creds.valid:
-        creds.refresh(google.auth.transport.requests.Request())
+    creds = get_gda_credentials()
     
     headers = {
         "Authorization": f"Bearer {creds.token}",
