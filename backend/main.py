@@ -54,6 +54,9 @@ app.add_middleware(
 # Initialize Google Cloud Clients
 storage_client = None
 PROJECT_ID = os.getenv("GCP_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
+# Security: Restricted to this bucket. Defaults to PROJECT_ID.
+# Must be set if the data bucket name differs from the project ID.
+ALLOWED_GCS_BUCKET = os.getenv("ALLOWED_GCS_BUCKET", PROJECT_ID)
 AGENT_CONTEXT_SET_ID = os.getenv("AGENT_CONTEXT_SET_ID")
 
 try:
@@ -217,6 +220,12 @@ async def get_image(gcs_uri: str):
              raise HTTPException(400, "Invalid GCS URI: Missing object path.")
 
         bucket_name, blob_name = path.split("/", 1)
+
+        # Security check: Ensure the bucket is allowed
+        if ALLOWED_GCS_BUCKET and bucket_name != ALLOWED_GCS_BUCKET:
+            logger.warning(f"Blocked attempt to access unauthorized bucket: {bucket_name}")
+            raise HTTPException(403, "Access to this GCS bucket is not allowed.")
+
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
         
@@ -242,6 +251,8 @@ async def get_image(gcs_uri: str):
                 headers={"Cache-Control": "public, max-age=86400"}
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error serving image: {e}")
         raise HTTPException(404, "Image not found or inaccessible.")
