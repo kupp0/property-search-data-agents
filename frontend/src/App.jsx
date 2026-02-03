@@ -145,7 +145,7 @@ function App() {
             {showArchitecture && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowArchitecture(false)}>
                     <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-slate-200 dark:border-slate-700 relative" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setShowArchitecture(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <button onClick={() => setShowArchitecture(false)} aria-label="Close architecture view" className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                             ✕
                         </button>
                         <h2 className="text-2xl font-bold mb-6 text-slate-800 dark:text-white flex items-center gap-2">
@@ -197,6 +197,7 @@ function App() {
             {/* FLOATING CHAT BUTTON */}
             <button
                 onClick={() => setShowChat(!showChat)}
+                aria-label={showChat ? "Close Chat" : "Open AI Agent Chat"}
                 className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 flex items-center justify-center ${showChat ? 'bg-slate-800 text-white rotate-90' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
                 title={showChat ? "Close Chat" : "Open AI Agent Chat"}
             >
@@ -280,7 +281,7 @@ function App() {
                             <button onClick={() => setShowHistory(true)} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all text-xs font-medium flex items-center gap-2">
                                 <History className="w-3 h-3" /> History
                             </button>
-                            <button onClick={() => setDarkMode(!darkMode)} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                            <button onClick={() => setDarkMode(!darkMode)} aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
                                 {darkMode ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
                             </button>
                         </div>
@@ -290,12 +291,13 @@ function App() {
                     <div className="max-w-2xl mx-auto relative z-10">
                         <form onSubmit={handleSearch} className="relative group/search">
                             <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl blur opacity-30 group-hover/search:opacity-60 transition duration-500"></div>
-                            <div className="relative flex items-center bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="relative flex items-center bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
                                 <div className="pl-4 text-slate-400">
                                     <Search className="w-5 h-5" />
                                 </div>
                                 <input
                                     type="text"
+                                    aria-label="Search properties"
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
                                     placeholder="Describe your dream home..."
