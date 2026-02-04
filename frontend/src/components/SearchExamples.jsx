@@ -67,8 +67,6 @@ const SearchExamples = ({ currentQuery, onSelectQuery }) => {
         }
     }, [currentQuery, activeExample]);
 
-    const displayExample = matchedExample || EXAMPLES[0];
-
     return (
         <div className="w-full mb-8 flex items-center gap-4">
             <div className="relative flex-1 group z-30">
@@ -116,6 +114,7 @@ const SearchExamples = ({ currentQuery, onSelectQuery }) => {
                         : 'bg-white text-slate-400 hover:text-indigo-500 hover:shadow-md'
                         }`}
                     title="How it works"
+                    aria-label="Show how it works"
                 >
                     <Info className="w-6 h-6" />
                 </button>
@@ -142,7 +141,7 @@ const SearchExamples = ({ currentQuery, onSelectQuery }) => {
                                             <p className="text-indigo-100 text-base font-medium">Inside the Hybrid Engine</p>
                                         </div>
                                     </div>
-                                    <button onClick={() => setShowInfo(false)} className="text-white/70 hover:text-white hover:bg-white/20 p-2 rounded-full transition-all">
+                                    <button onClick={() => setShowInfo(false)} className="text-white/70 hover:text-white hover:bg-white/20 p-2 rounded-full transition-all" aria-label="Close info modal">
                                         <X className="w-6 h-6" />
                                     </button>
                                 </div>

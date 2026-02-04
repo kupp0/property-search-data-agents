@@ -145,7 +145,7 @@ function App() {
             {showArchitecture && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowArchitecture(false)}>
                     <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-slate-200 dark:border-slate-700 relative" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setShowArchitecture(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <button onClick={() => setShowArchitecture(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Close architecture modal">
                             ✕
                         </button>
                         <h2 className="text-2xl font-bold mb-6 text-slate-800 dark:text-white flex items-center gap-2">
@@ -199,6 +199,7 @@ function App() {
                 onClick={() => setShowChat(!showChat)}
                 className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 flex items-center justify-center ${showChat ? 'bg-slate-800 text-white rotate-90' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
                 title={showChat ? "Close Chat" : "Open AI Agent Chat"}
+                aria-label={showChat ? "Close chat" : "Open chat"}
             >
                 {showChat ? <ArrowRight className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
             </button>
@@ -280,7 +281,7 @@ function App() {
                             <button onClick={() => setShowHistory(true)} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all text-xs font-medium flex items-center gap-2">
                                 <History className="w-3 h-3" /> History
                             </button>
-                            <button onClick={() => setDarkMode(!darkMode)} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                            <button onClick={() => setDarkMode(!darkMode)} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all" aria-label="Toggle dark mode">
                                 {darkMode ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
                             </button>
                         </div>
@@ -305,6 +306,7 @@ function App() {
                                     type="submit"
                                     disabled={loading || !query.trim()}
                                     className="m-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    aria-label="Search"
                                 >
                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="hidden sm:inline">Search</span>}
                                     {!loading && <ArrowRight className="w-4 h-4" />}
@@ -359,6 +361,7 @@ function App() {
                                             <div className="font-mono text-sm overflow-x-auto bg-slate-950/50 p-3 rounded-lg border border-slate-800 max-h-64 overflow-y-auto custom-scrollbar">
                                                 <ReactMarkdown
                                                     components={{
+                                                        // eslint-disable-next-line no-unused-vars
                                                         code({ node, inline, className, children, ...props }) {
                                                             return (
                                                                 <code className={`${className} text-emerald-300 bg-transparent`} {...props}>
