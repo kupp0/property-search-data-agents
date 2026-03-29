@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -126,6 +126,43 @@ class HistoryRequest(BaseModel):
 
 # Global variable to cache GDA credentials
 _gda_credentials = None
+
+async def log_search_history(prompt: str, explanation: str):
+    """
+    Logs user search history to the database.
+    This is intended to run as a background task.
+    """
+    try:
+        db_engine = await get_engine()
+        async with db_engine.begin() as conn:
+            # Determine template usage
+            query_template_used = False
+            query_template_id = None
+
+            if explanation:
+                # Look for "Template X" pattern in the explanation
+                match = re.search(r"Template\s+(\d+)", explanation, re.IGNORECASE)
+                if match:
+                    query_template_used = True
+                    query_template_id = int(match.group(1))
+
+            await conn.execute(
+                text("""
+                INSERT INTO user_prompt_history
+                (user_prompt, query_template_used, query_template_id, query_explanation)
+                VALUES (:prompt, :used, :id, :explanation)
+                """),
+                {
+                    "prompt": prompt,
+                    "used": query_template_used,
+                    "id": query_template_id,
+                    "explanation": explanation
+                }
+            )
+
+        logger.info("User prompt history saved (Search - Background).")
+    except Exception as db_err:
+        logger.error(f"Failed to save user prompt history (Search): {db_err}")
 
 def get_gda_credentials():
     """
@@ -263,7 +300,7 @@ async def get_image(gcs_uri: str):
         raise HTTPException(404, "Image not found or inaccessible.")
 
 @app.post("/api/search")
-async def search_properties(request: SearchRequest):
+async def search_properties(request: SearchRequest, background_tasks: BackgroundTasks):
     """
     Handles property search requests using the Gemini Data Agent.
     
@@ -323,38 +360,8 @@ async def search_properties(request: SearchRequest):
         if explanation:
             display_sql += f"\n// Explanation: {explanation}"
         
-        # Log to Database
-        try:
-            db_engine = await get_engine()
-            async with db_engine.begin() as conn:
-                # Determine template usage
-                query_template_used = False
-                query_template_id = None
-                
-                if explanation:
-                    # Look for "Template X" pattern in the explanation
-                    match = re.search(r"Template\s+(\d+)", explanation, re.IGNORECASE)
-                    if match:
-                        query_template_used = True
-                        query_template_id = int(match.group(1))
-                
-                await conn.execute(
-                    text("""
-                    INSERT INTO user_prompt_history 
-                    (user_prompt, query_template_used, query_template_id, query_explanation)
-                    VALUES (:prompt, :used, :id, :explanation)
-                    """),
-                    {
-                        "prompt": request.query, 
-                        "used": query_template_used, 
-                        "id": query_template_id,
-                        "explanation": explanation
-                    }
-                )
-
-            logger.info("User prompt history saved (Search).")
-        except Exception as db_err:
-            logger.error(f"Failed to save user prompt history (Search): {db_err}")
+        # Log to Database (Background Task)
+        background_tasks.add_task(log_search_history, request.query, explanation)
 
         return {
             "listings": results, 
