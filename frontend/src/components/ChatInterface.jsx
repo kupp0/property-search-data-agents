@@ -118,7 +118,11 @@ const ChatInterface = ({ onClose, onResultsFound }) => {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
+            <div
+                className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600"
+                role="log"
+                aria-live="polite"
+            >
                 {messages.map((msg, idx) => (
                     <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                         <div className={`flex max-w-[85%] gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -168,10 +172,10 @@ const ChatInterface = ({ onClose, onResultsFound }) => {
                     <button
                         onClick={handleSend}
                         disabled={isLoading || !input.trim()}
-                        aria-label="Send message"
+                        aria-label={isLoading ? "Sending message" : "Send message"}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
                     >
-                        <Send className="w-5 h-5" />
+                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                     </button>
                 </div>
             </div>
